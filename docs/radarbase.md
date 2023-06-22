@@ -1,3 +1,5 @@
+# radarbase
+
 The inspiration for Radarbase comes from a unique real-world challenge its creator experienced while working part-time at a local financial firm. Tasked with the development of a web application called "Radar", which visualized a plethora of worldwide stock data via radar charts, the developer confronted the issues arising from heavy client-side data processing.
 
 The initial "Radar" application was a client-side application that processed and presented all data in the browser using a CSV format. As the amount of stock data increased, so did the complexity of the front-end code and the application's response time, leading to an inefficient system.

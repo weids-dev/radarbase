@@ -11,6 +11,7 @@ authors = ["Angold Wang <awang@weids.dev>"]
 # Libraries directly used in the project.
 [dependencies]
 rand = "0.8"
+memmap2 = "0.3.0"
 
 
 # Libraries that are only used for development
