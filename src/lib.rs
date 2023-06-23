@@ -3,6 +3,7 @@ mod error;
 mod table;
 mod transactions;
 mod storage;
+mod binarytree;
 
 pub use db::Database;
 pub use error::Error;
