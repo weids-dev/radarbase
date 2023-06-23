@@ -10,22 +10,23 @@ authors = ["Angold Wang <awang@weids.dev>"]
 
 # Libraries directly used in the project.
 [dependencies]
-rand = "0.8"
 memmap2 = "0.3.0"
 
 
 # Libraries that are only used for development
 [dev-dependencies]
+rand = "0.8"
 lmdb-zero = "0.4.4"
 lmdb-rkv = "0.14.0"
 tempfile = "3.2.0"
+sled = "0.34.6"
 
 
 [[bench]]
-name = "lmdb_benchmark"
+name = "benchmark"
 harness = false
 
 
 [[bench]]
-name = "radb_benchmark"
+name = "syscall_benchmark"
 harness = false

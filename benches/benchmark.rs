@@ -1,8 +1,10 @@
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempDir};
+
+mod common;
+use common::*;
 
 use rand::prelude::SliceRandom;
 use rand::Rng;
-use std::path::Path;
 use std::time::SystemTime;
 
 const ITERATIONS: usize = 3;
@@ -21,16 +23,11 @@ fn gen_data(count: usize, key_size: usize, value_size: usize) -> Vec<(Vec<u8>, V
     pairs
 }
 
-fn radb_bench(path: &Path) {
-    use radarbase::Database;
-
-    let db = unsafe { Database::open(path).unwrap() };
-    let mut table = db.open_table("bench").unwrap();
-
+fn benchmark<T: BenchTable>(mut db: T) {
     let pairs = gen_data(1000, 16, 2000);
 
     let start = SystemTime::now();
-    let mut txn = table.begin_write().unwrap();
+    let mut txn = db.write_transaction();
     {
         for i in 0..ELEMENTS {
             let (key, value) = &pairs[i % pairs.len()];
@@ -44,7 +41,8 @@ fn radb_bench(path: &Path) {
     let end = SystemTime::now();
     let duration = end.duration_since(start).unwrap();
     println!(
-        "radb: Loaded {} items in {}ms",
+        "{}: Loaded {} items in {}ms",
+        T::db_type_name(),
         ELEMENTS,
         duration.as_millis()
     );
@@ -52,7 +50,7 @@ fn radb_bench(path: &Path) {
     let mut key_order: Vec<usize> = (0..ELEMENTS).collect();
     key_order.shuffle(&mut rand::thread_rng());
 
-    let txn = table.read_transaction().unwrap();
+    let txn = db.read_transaction();
     {
         for _ in 0..ITERATIONS {
             let start = SystemTime::now();
@@ -62,15 +60,16 @@ fn radb_bench(path: &Path) {
                 let (key, value) = &pairs[*i % pairs.len()];
                 let mut mut_key = key.clone();
                 mut_key.extend_from_slice(&i.to_be_bytes());
-                let result: &[u8] = &txn.get(&mut_key).unwrap().unwrap();
-                checksum += result[0] as u64;
+                let result = txn.get(&mut_key).unwrap();
+                checksum += result.as_ref()[0] as u64;
                 expected_checksum += value[0] as u64;
             }
             assert_eq!(checksum, expected_checksum);
             let end = SystemTime::now();
             let duration = end.duration_since(start).unwrap();
             println!(
-                "radb: Random read {} items in {}ms",
+                "{}: Random read {} items in {}ms",
+                T::db_type_name(),
                 ELEMENTS,
                 duration.as_millis()
             );
@@ -78,10 +77,24 @@ fn radb_bench(path: &Path) {
     }
 }
 
-
 fn main() {
     {
+        let tmpfile: TempDir = tempfile::tempdir().unwrap();
+        let env = lmdb::Environment::new().open(tmpfile.path()).unwrap();
+        env.set_map_size(4096 * 1024 * 1024).unwrap();
+        let table = LmdbRkvBenchTable::new(&env);
+        benchmark(table);
+    }
+    {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
-        radb_bench(tmpfile.path());
+        let db = unsafe { radarbase::Database::open(tmpfile.path()).unwrap() };
+        let table = RadbBenchTable::new(&db);
+        benchmark(table);
+    }
+    {
+        let tmpfile: TempDir = tempfile::tempdir().unwrap();
+        let db = sled::Config::new().path(tmpfile.path()).open().unwrap();
+        let table = SledBenchTable::new(&db);
+        benchmark(table);
     }
 }
