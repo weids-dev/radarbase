@@ -3,6 +3,8 @@ use std::cell::Cell;
 use std::cmp::Ordering;
 use std::convert::TryInto;
 
+
+/// Writes a vector to a byte array.
 fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
     output[index..(index + 8)].copy_from_slice(&(value.len() as u64).to_be_bytes());
     index += 8;
@@ -11,7 +13,32 @@ fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
     index
 }
 
-// Returns the (offset, len) of the value for the queried key, if present
+/// Returns the `(offset, len)` of the value for a queried key within a binary tree, if present.
+///
+/// The binary tree is represented as a byte array. This function is used to find the
+/// offset and length of a value associated with a given key.
+///
+/// Given a key, the function starts from the root of the tree and moves either to the left 
+/// or the right child depending on whether the key is less than or more than the current 
+/// node's key. This process continues until the key is found or it is determined that the 
+/// key does not exist in the tree.
+///
+/// # Arguments
+///
+/// * `tree` - The byte array representing the binary tree.
+/// * `query` - The key being queried.
+/// * `index` - The initial index to start the lookup from within the byte array.
+///
+/// # Returns
+///
+/// An `Option` that contains a tuple `(usize, usize)`. The first element is the offset 
+/// of the value within the byte array. The second element is the length of the value. 
+/// If the key is not found in the tree, it returns `None`.
+///
+/// # Panics
+///
+/// This function will panic if it encounters a byte in the tree array that does not
+/// correspond to a recognized node type (1 or 2).
 pub(in crate) fn lookup_in_raw(
     tree: &[u8],
     query: &[u8],
@@ -19,9 +46,11 @@ pub(in crate) fn lookup_in_raw(
 ) -> Option<(usize, usize)> {
     match tree[index] {
         1 => {
+            // Leaf node
             index += 1;
             let key_len = u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap()) as usize;
             index += 8;
+
             match query.cmp(&tree[index..(index + key_len)]) {
                 Ordering::Less => None,
                 Ordering::Equal => {
@@ -74,11 +103,14 @@ pub(in crate) fn lookup_in_raw(
 
 #[derive(Eq, PartialEq, Debug)]
 pub(in crate) enum Node {
+    // To decrease the height of the tree, each leaf node may have two key-value pairs
     Leaf((Vec<u8>, Vec<u8>), Option<(Vec<u8>, Vec<u8>)>),
+
     Internal(Box<Node>, Vec<u8>, Box<Node>),
 }
 
 impl Node {
+    /// Returns the size of the node in bytes
     pub(in crate) fn recursive_size(&self) -> usize {
         match self {
             Node::Leaf(left_val, right_val) => {
@@ -102,7 +134,8 @@ impl Node {
                 size
             } }
     }
-    // Returns the index following the last written
+
+    /// Returns the index following the last written
     pub(in crate) fn to_bytes(&self, output: &mut [u8], mut index: usize) -> usize {
         match self {
             Node::Leaf(left_val, right_val) => {
@@ -133,6 +166,7 @@ impl Node {
         index
     }
 
+    /// Returns the maximum key in the tree
     fn get_max_key(&self) -> Vec<u8> {
         match self {
             Node::Leaf((left_key, _), right_val) => {
@@ -160,10 +194,48 @@ impl BinarytreeBuilder {
         self.pairs.push((key.to_vec(), value.to_vec()));
     }
 
+    /// Builds a balanced binary tree from the provided key-value pairs.
+    ///
+    /// This function operates by first sorting the pairs by key to ensure balance, then
+    /// constructs the tree by creating leaves from pairs of elements and combining them
+    /// into internal nodes. If there is an odd number of elements, the last one is handled separately.
+    /// 
+    /// The tree is built in a bottom-up manner, i.e., leaves are created first and then
+    /// internal nodes are created by combining these leaves. This process continues until
+    /// we have a single node, which is the root of the tree.
+    ///
+    /// A critical part of this function is the `maybe_previous_node` variable. 
+    /// This variable is used to hold a node from the previous iteration of the loop, 
+    /// effectively serving as a 'buffer'. This buffering is essential because, 
+    /// for each internal (non-leaf) node, we need two child nodes. However, 
+    /// we're processing the nodes one at a time. So after processing one node, 
+    /// we store it in `maybe_previous_node` until we process the next node. 
+    /// After the second node is processed, we can then create an internal node 
+    /// with `maybe_previous_node` and the second node as its children.
+    ///
+    /// The use of `maybe_previous_node` is similar to a state machine. 
+    /// After every two nodes are processed, the state is reset 
+    /// (by creating an internal node and clearing maybe_previous_node), 
+    /// and the process starts over for the next pair of nodes. 
+    /// This continues until we only have one node left, which is the root of the tree.
+    ///
+    /// # Panics
+    /// 
+    /// This function will panic if the `pairs` vector is empty, as it's not possible to build
+    /// a tree without any nodes.
+    ///
+    /// It will also panic in case a duplicate key is encountered during tree building, as 
+    /// it currently does not support overwriting existing keys.
+    ///
+    /// # Returns
+    /// 
+    /// This function returns the root `Node` of the constructed tree.
     pub(in crate) fn build(mut self) -> Node {
+        // we want a balanced tree, so we sort the pairs by key
         assert!(!self.pairs.is_empty());
         self.pairs.sort();
         let mut leaves = vec![];
+
         for group in self.pairs.chunks(2) {
             let leaf = if group.len() == 1 {
                 Leaf((group[0].0.to_vec(), group[0].1.to_vec()), None)
@@ -182,17 +254,19 @@ impl BinarytreeBuilder {
 
         let mut bottom = leaves;
         let maybe_previous_node: Cell<Option<Node>> = Cell::new(None);
+
         while bottom.len() > 1 {
             let mut internals = vec![];
             for node in bottom.drain(..) {
                 if let Some(previous_node) = maybe_previous_node.take() {
-                    let key = previous_node.get_max_key();
+                    let key = previous_node.get_max_key(); // 2
                     let internal = Internal(Box::new(previous_node), key, Box::new(node));
                     internals.push(internal)
                 } else {
                     maybe_previous_node.set(Some(node));
                 }
             }
+
             if let Some(previous_node) = maybe_previous_node.take() {
                 internals.push(previous_node);
             }
