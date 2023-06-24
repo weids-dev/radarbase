@@ -12,6 +12,7 @@ pub struct Database {
 
 impl Database {
     /// Opens the specified file as a radarbase database (radb).
+    ///
     /// * if the file does not exist, or is an empty file, a new database will be initialized in it
     /// * if the file is a valid redb database, it will be opened
     /// * otherwise this function will return an error
