@@ -21,8 +21,8 @@ jobs:
 
       - name: Build documentation
         run: |
-          cargo doc --document-private-items --no-deps
-          echo "<meta http-equiv=\"refresh\" content=\"0; url=radarbase\">" > target/doc/index.html
+          cargo doc --document-private-items
+          cp -r ./target/doc/radarbase ./target/doc/
 
       - name: Deploy documentation
         uses: peaceiris/actions-gh-pages@v3
