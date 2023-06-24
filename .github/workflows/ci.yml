@@ -20,10 +20,12 @@ jobs:
           override: true
 
       - name: Build documentation
-        run: cargo doc --document-private-items
+        run: |
+          cargo doc --document-private-items --no-deps
+          echo "<meta http-equiv=\"refresh\" content=\"0; url=radarbase\">" > target/doc/index.html
 
       - name: Deploy documentation
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/doc/radarbase
+          publish_dir: ./target/doc/
