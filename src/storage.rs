@@ -37,6 +37,7 @@ impl Storage {
         Ok(())
     }
 
+    /// Append a new key & value to the end of the file
     pub(crate) fn append(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
         let mut mmap = self.mmap.borrow_mut();
         let mut data_len =
@@ -84,9 +85,8 @@ impl Storage {
         Ok(entries)
     }
 
+    /// Flush the data to disk, and rebuild the binary tree
     pub(crate) fn fsync(&self) -> Result<(), Error> {
-        // commit
-
         let mut builder = BinarytreeBuilder::new();
         let mut mmap = self.mmap.borrow_mut();
 
