@@ -1,8 +1,8 @@
 use tempfile::NamedTempFile;
 
+use radarbase::Database;
 use rand::prelude::SliceRandom;
 use rand::Rng;
-use radarbase::Database;
 
 const ELEMENTS: usize = 100;
 

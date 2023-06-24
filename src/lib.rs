@@ -1,8 +1,8 @@
 mod db;
 mod error;
+mod storage;
 mod table;
 mod transactions;
-mod storage;
 
 /// This module provides an implementation of a binary tree.
 ///
@@ -31,6 +31,6 @@ mod binarytree;
 
 pub use db::Database;
 pub use error::Error;
-pub use table::Table;
 pub use storage::AccessGuard;
+pub use table::Table;
 pub use transactions::{ReadOnlyTransaction, WriteTransaction};

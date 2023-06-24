@@ -3,7 +3,6 @@ use std::cell::Cell;
 use std::cmp::Ordering;
 use std::convert::TryInto;
 
-
 /// Writes a vector to a byte array.
 fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
     output[index..(index + 8)].copy_from_slice(&(value.len() as u64).to_be_bytes());
@@ -18,9 +17,9 @@ fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
 /// The binary tree is represented as a byte array. This function is used to find the
 /// offset and length of a value associated with a given key.
 ///
-/// Given a key, the function starts from the root of the tree and moves either to the left 
-/// or the right child depending on whether the key is less than or more than the current 
-/// node's key. This process continues until the key is found or it is determined that the 
+/// Given a key, the function starts from the root of the tree and moves either to the left
+/// or the right child depending on whether the key is less than or more than the current
+/// node's key. This process continues until the key is found or it is determined that the
 /// key does not exist in the tree.
 ///
 /// # Arguments
@@ -31,19 +30,15 @@ fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
 ///
 /// # Returns
 ///
-/// An `Option` that contains a tuple `(usize, usize)`. The first element is the offset 
-/// of the value within the byte array. The second element is the length of the value. 
+/// An `Option` that contains a tuple `(usize, usize)`. The first element is the offset
+/// of the value within the byte array. The second element is the length of the value.
 /// If the key is not found in the tree, it returns `None`.
 ///
 /// # Panics
 ///
 /// This function will panic if it encounters a byte in the tree array that does not
 /// correspond to a recognized node type (1 or 2).
-pub(in crate) fn lookup_in_raw(
-    tree: &[u8],
-    query: &[u8],
-    mut index: usize,
-) -> Option<(usize, usize)> {
+pub(crate) fn lookup_in_raw(tree: &[u8], query: &[u8], mut index: usize) -> Option<(usize, usize)> {
     match tree[index] {
         1 => {
             // Leaf node
@@ -102,7 +97,7 @@ pub(in crate) fn lookup_in_raw(
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub(in crate) enum Node {
+pub(crate) enum Node {
     // To decrease the height of the tree, each leaf node may have two key-value pairs
     Leaf((Vec<u8>, Vec<u8>), Option<(Vec<u8>, Vec<u8>)>),
 
@@ -111,7 +106,7 @@ pub(in crate) enum Node {
 
 impl Node {
     /// Returns the size of the node in bytes
-    pub(in crate) fn recursive_size(&self) -> usize {
+    pub(crate) fn recursive_size(&self) -> usize {
         match self {
             Node::Leaf(left_val, right_val) => {
                 let mut size = 1; // 1 byte for node type
@@ -132,11 +127,12 @@ impl Node {
                 size += 8 + left.recursive_size();
                 size += right.recursive_size();
                 size
-            } }
+            }
+        }
     }
 
     /// Returns the index following the last written
-    pub(in crate) fn to_bytes(&self, output: &mut [u8], mut index: usize) -> usize {
+    pub(crate) fn to_bytes(&self, output: &mut [u8], mut index: usize) -> usize {
         match self {
             Node::Leaf(left_val, right_val) => {
                 output[index] = 1;
@@ -181,16 +177,16 @@ impl Node {
     }
 }
 
-pub(in crate) struct BinarytreeBuilder {
+pub(crate) struct BinarytreeBuilder {
     pairs: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
 impl BinarytreeBuilder {
-    pub(in crate) fn new() -> BinarytreeBuilder {
+    pub(crate) fn new() -> BinarytreeBuilder {
         BinarytreeBuilder { pairs: vec![] }
     }
 
-    pub(in crate) fn add(&mut self, key: &[u8], value: &[u8]) {
+    pub(crate) fn add(&mut self, key: &[u8], value: &[u8]) {
         self.pairs.push((key.to_vec(), value.to_vec()));
     }
 
@@ -199,38 +195,38 @@ impl BinarytreeBuilder {
     /// This function operates by first sorting the pairs by key to ensure balance, then
     /// constructs the tree by creating leaves from pairs of elements and combining them
     /// into internal nodes. If there is an odd number of elements, the last one is handled separately.
-    /// 
+    ///
     /// The tree is built in a bottom-up manner, i.e., leaves are created first and then
     /// internal nodes are created by combining these leaves. This process continues until
     /// we have a single node, which is the root of the tree.
     ///
-    /// A critical part of this function is the `maybe_previous_node` variable. 
-    /// This variable is used to hold a node from the previous iteration of the loop, 
-    /// effectively serving as a 'buffer'. This buffering is essential because, 
-    /// for each internal (non-leaf) node, we need two child nodes. However, 
-    /// we're processing the nodes one at a time. So after processing one node, 
-    /// we store it in `maybe_previous_node` until we process the next node. 
-    /// After the second node is processed, we can then create an internal node 
+    /// A critical part of this function is the `maybe_previous_node` variable.
+    /// This variable is used to hold a node from the previous iteration of the loop,
+    /// effectively serving as a 'buffer'. This buffering is essential because,
+    /// for each internal (non-leaf) node, we need two child nodes. However,
+    /// we're processing the nodes one at a time. So after processing one node,
+    /// we store it in `maybe_previous_node` until we process the next node.
+    /// After the second node is processed, we can then create an internal node
     /// with `maybe_previous_node` and the second node as its children.
     ///
-    /// The use of `maybe_previous_node` is similar to a state machine. 
-    /// After every two nodes are processed, the state is reset 
-    /// (by creating an internal node and clearing maybe_previous_node), 
-    /// and the process starts over for the next pair of nodes. 
+    /// The use of `maybe_previous_node` is similar to a state machine.
+    /// After every two nodes are processed, the state is reset
+    /// (by creating an internal node and clearing maybe_previous_node),
+    /// and the process starts over for the next pair of nodes.
     /// This continues until we only have one node left, which is the root of the tree.
     ///
     /// # Panics
-    /// 
+    ///
     /// This function will panic if the `pairs` vector is empty, as it's not possible to build
     /// a tree without any nodes.
     ///
-    /// It will also panic in case a duplicate key is encountered during tree building, as 
+    /// It will also panic in case a duplicate key is encountered during tree building, as
     /// it currently does not support overwriting existing keys.
     ///
     /// # Returns
-    /// 
+    ///
     /// This function returns the root `Node` of the constructed tree.
-    pub(in crate) fn build(mut self) -> Node {
+    pub(crate) fn build(mut self) -> Node {
         // we want a balanced tree, so we sort the pairs by key
         assert!(!self.pairs.is_empty());
         self.pairs.sort();

@@ -8,7 +8,7 @@ pub struct WriteTransaction<'mmap> {
 }
 
 impl<'mmap> WriteTransaction<'mmap> {
-    pub(in crate) fn new(storage: &'mmap Storage) -> WriteTransaction<'mmap> {
+    pub(crate) fn new(storage: &'mmap Storage) -> WriteTransaction<'mmap> {
         WriteTransaction {
             storage,
             data: HashMap::new(),
@@ -34,7 +34,7 @@ pub struct ReadOnlyTransaction<'mmap> {
 }
 
 impl<'mmap> ReadOnlyTransaction<'mmap> {
-    pub(in crate) fn new(storage: &'mmap Storage) -> ReadOnlyTransaction<'mmap> {
+    pub(crate) fn new(storage: &'mmap Storage) -> ReadOnlyTransaction<'mmap> {
         ReadOnlyTransaction { storage }
     }
 

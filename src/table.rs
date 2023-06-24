@@ -8,7 +8,7 @@ pub struct Table<'mmap> {
 }
 
 impl<'mmap> Table<'mmap> {
-    pub(in crate) fn new(storage: &'mmap Storage) -> Result<Table<'mmap>, Error> {
+    pub(crate) fn new(storage: &'mmap Storage) -> Result<Table<'mmap>, Error> {
         Ok(Table { storage })
     }
 

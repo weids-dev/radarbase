@@ -1,6 +1,6 @@
+use crate::binarytree::{lookup_in_raw, BinarytreeBuilder};
 use crate::Error;
 use memmap2::MmapMut;
-use crate::binarytree::{lookup_in_raw, BinarytreeBuilder};
 use std::cell::{Ref, RefCell};
 use std::convert::TryInto;
 
@@ -8,25 +8,25 @@ const MAGICNUMBER: [u8; 4] = [b'r', b'e', b'd', b'b'];
 const DATA_LEN: usize = MAGICNUMBER.len();
 const DATA_OFFSET: usize = DATA_LEN + 8;
 
-pub(in crate) struct Storage {
+pub(crate) struct Storage {
     mmap: RefCell<MmapMut>,
 }
 
 impl Storage {
-    pub(in crate) fn new(mmap: MmapMut) -> Storage {
+    pub(crate) fn new(mmap: MmapMut) -> Storage {
         // Mutate data even there are immutable reference to that data
         Storage {
             mmap: RefCell::new(mmap),
         }
     }
 
-    pub(in crate) fn initialize(&self) -> Result<(), Error> {
+    pub(crate) fn initialize(&self) -> Result<(), Error> {
         let mut mmap = self.mmap.borrow_mut();
         if mmap[0..MAGICNUMBER.len()] == MAGICNUMBER {
             // Already initialized, nothing to do
             return Ok(());
         }
-        mmap[DATA_LEN..(DATA_LEN + 8)].copy_from_slice(&0u64.to_be_bytes()); 
+        mmap[DATA_LEN..(DATA_LEN + 8)].copy_from_slice(&0u64.to_be_bytes());
         // indicate that there are no entries
         mmap.flush()?;
         // Write the magic number only after the data structure is initialized and written to disk
@@ -37,12 +37,12 @@ impl Storage {
         Ok(())
     }
 
-    pub(in crate) fn append(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
+    pub(crate) fn append(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
         let mut mmap = self.mmap.borrow_mut();
         let mut data_len =
             u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + 8)].try_into().unwrap()) as usize;
         // number of entries (stored in the first 8 bytes of the file after the magic number)
-    
+
         // do not check whether it is a duplicate key, just append it to the end
         let mut index = DATA_OFFSET + data_len;
 
@@ -63,7 +63,7 @@ impl Storage {
         Ok(())
     }
 
-    pub(in crate) fn len(&self) -> Result<usize, Error> {
+    pub(crate) fn len(&self) -> Result<usize, Error> {
         // get the number of entries
         let mmap = self.mmap.borrow();
         let data_len =
@@ -84,7 +84,7 @@ impl Storage {
         Ok(entries)
     }
 
-    pub(in crate) fn fsync(&self) -> Result<(), Error> {
+    pub(crate) fn fsync(&self) -> Result<(), Error> {
         // commit
 
         let mut builder = BinarytreeBuilder::new();
@@ -118,7 +118,7 @@ impl Storage {
         Ok(())
     }
 
-    pub(in crate) fn get(&self, key: &[u8]) -> Result<Option<AccessGuard>, Error> {
+    pub(crate) fn get(&self, key: &[u8]) -> Result<Option<AccessGuard>, Error> {
         let mmap = self.mmap.borrow();
 
         let data_len =
