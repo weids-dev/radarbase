@@ -22,10 +22,12 @@ jobs:
       - name: Build documentation
         run: |
           cargo doc --document-private-items --no-deps
-          mv target/doc/radarbase/* target/doc/
+          echo "<meta http-equiv=\"refresh\" content=\"0; url=radarbase\">" > target/doc/index.html
 
       - name: Deploy documentation
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.BOT_GITHUB_TOKEN }}
+          user_name: 'weids-bot'
+          user_email: 'weids-bot@users.noreply.github.com'
           publish_dir: ./target/doc/
