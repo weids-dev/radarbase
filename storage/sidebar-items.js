@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DATA_LEN","DATA_OFFSET","MAGICNUMBER"],"struct":["AccessGuard","Storage"]};
