@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"radarbase":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.70.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"enum\" href=\"radarbase/binarytree/enum.Node.html\" title=\"enum radarbase::binarytree::Node\">Node</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.70.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"enum\" href=\"radarbase/error/enum.Error.html\" title=\"enum radarbase::error::Error\">Error</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
