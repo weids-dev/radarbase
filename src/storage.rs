@@ -63,8 +63,8 @@ impl Storage {
         Ok(())
     }
 
+    /// Get the number of entries
     pub(crate) fn len(&self) -> Result<usize, Error> {
-        // get the number of entries
         let mmap = self.mmap.borrow();
         let data_len =
             u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + 8)].try_into().unwrap()) as usize;
