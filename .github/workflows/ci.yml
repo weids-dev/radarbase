@@ -22,7 +22,7 @@ jobs:
       - name: Build documentation
         run: |
           cargo doc --document-private-items
-          cp -r ./target/doc/radarbase ./target/doc/
+          cp -r ./target/doc/radarbase/* ./target/doc/
 
       - name: Deploy documentation
         uses: peaceiris/actions-gh-pages@v3
