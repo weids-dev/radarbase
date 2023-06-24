@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   build:
@@ -30,4 +28,5 @@ jobs:
           github_token: ${{ secrets.BOT_GITHUB_TOKEN }}
           user_name: 'weids-bot'
           user_email: 'weids-bot@users.noreply.github.com'
+          cname: 'radarbase.weids.dev'
           publish_dir: ./target/doc/
