@@ -16,17 +16,6 @@ mod transactions;
 /// nodes can contain up to two key-value pairs. This design helps reduce the
 /// height of the tree.
 ///
-/// # Example
-///
-/// ```
-/// use crate::binarytree::BinarytreeBuilder;
-///
-/// let mut builder = BinarytreeBuilder::new();
-/// builder.add(b"key1", b"value1");
-/// builder.add(b"key2", b"value2");
-///
-/// let tree = builder.build();
-/// ```
 mod binarytree;
 
 pub use db::Database;
