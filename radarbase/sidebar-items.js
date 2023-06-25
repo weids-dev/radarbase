@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error"],"mod":["binarytree","db","error","storage","table","transactions"],"struct":["AccessGuard","Database","ReadOnlyTransaction","Table","WriteTransaction"]};
+window.SIDEBAR_ITEMS = {"enum":["AccessGuard","Error"],"mod":["binarytree","db","error","storage","table","transactions"],"struct":["Database","ReadOnlyTransaction","Table","WriteTransaction"]};

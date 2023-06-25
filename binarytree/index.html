@@ -7,12 +7,4 @@ up values based on their keys.</p>
 leaf nodes. Internal nodes contain a key and two child nodes, while leaf
 nodes can contain up to two key-value pairs. This design helps reduce the
 height of the tree.</p>
-<h2 id="example"><a href="#example">Example</a></h2>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::BinarytreeBuilder;
-
-<span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
-builder.add(<span class="string">b&quot;key1&quot;</span>, <span class="string">b&quot;value1&quot;</span>);
-builder.add(<span class="string">b&quot;key2&quot;</span>, <span class="string">b&quot;value2&quot;</span>);
-
-<span class="kw">let </span>tree = builder.build();</code></pre></div>
 </div></details><h2 id="structs" class="small-section-header"><a href="#structs">Structs</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.BinarytreeBuilder.html" title="struct radarbase::binarytree::BinarytreeBuilder">BinarytreeBuilder</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="enums" class="small-section-header"><a href="#enums">Enums</a></h2><ul class="item-table"><li><div class="item-name"><a class="enum" href="enum.Node.html" title="enum radarbase::binarytree::Node">Node</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="functions" class="small-section-header"><a href="#functions">Functions</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.lookup_in_raw.html" title="fn radarbase::binarytree::lookup_in_raw">lookup_in_raw</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Returns the <code>(offset, len)</code> of the value for a queried key within a binary tree, if present.</div></li><li><div class="item-name"><a class="fn" href="fn.write_vec.html" title="fn radarbase::binarytree::write_vec">write_vec</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Writes a vector to a byte array.</div></li></ul></section></div></main></body></html>

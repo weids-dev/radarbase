@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["DATA_LEN","DATA_OFFSET","MAGICNUMBER"],"struct":["AccessGuard","Storage"]};
+window.SIDEBAR_ITEMS = {"constant":["DATA_LEN","DATA_OFFSET","ENTRY_DELETED","MAGICNUMBER"],"enum":["AccessGuard"],"struct":["EntryAccessor","EntryMutator","Storage"]};
