@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["INTERNAL","LEAF"],"enum":["Node"],"fn":["lookup_in_raw","write_vec"],"struct":["BinarytreeBuilder","EntryAccessor","EntryMutator","LeafAccessor","LeafBuilder"]};
+window.SIDEBAR_ITEMS = {"constant":["INTERNAL","LEAF"],"enum":["Node"],"fn":["lookup_in_raw","tree_size"],"struct":["BinarytreeBuilder","EntryAccessor","EntryMutator","InternalAccessor","InternalBuilder","LeafAccessor","LeafBuilder"]};

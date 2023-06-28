@@ -275,22 +275,7 @@
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
 <a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{lookup_in_raw, BinarytreeBuilder};
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{lookup_in_raw, tree_size, BinarytreeBuilder};
 <span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, ALL_MEMORY_HACK, DB_METADATA_PAGE};
 <span class="kw">use </span><span class="kw">crate</span>::Error;
 <span class="kw">use </span>memmap2::MmapMut;
@@ -444,26 +429,11 @@
 
     <span class="doccomment">/// Get the number of entries
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="kw">let </span>all_mem = <span class="self">self</span>.mem.get_page(ALL_MEMORY_HACK);
-        <span class="kw">let </span>mmap = all_mem.memory();
-        <span class="kw">let </span>data_len = u64::from_be_bytes(
-            mmap[DATA_LEN_OFFSET..(DATA_LEN_OFFSET + <span class="number">8</span>)]
-                .try_into()
-                .unwrap(),
-        ) <span class="kw">as </span>usize;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>index = DATA_OFFSET;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>entries = <span class="number">0</span>;
-        <span class="kw">while </span>index &lt; (DATA_OFFSET + data_len) {
-            <span class="kw">let </span>entry = EntryAccessor::new(<span class="kw-2">&amp;</span>mmap[index..]);
-            index += entry.raw_len();
-            <span class="kw">if </span>!entry.is_deleted() {
-                entries += <span class="number">1</span>;
-            }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(root) = <span class="self">self</span>.get_root_page() {
+            <span class="prelude-val">Ok</span>(tree_size(root, <span class="kw-2">&amp;</span><span class="self">self</span>.mem))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(<span class="number">0</span>)
         }
-
-        <span class="prelude-val">Ok</span>(entries)
     }
 
     <span class="kw">fn </span>get_root_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Page&gt; {
