@@ -7,15 +7,6 @@ use std::convert::TryInto;
 const LEAF: u8 = 1;
 const INTERNAL: u8 = 2;
 
-/// Writes a vector to a byte array.
-fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
-    output[index..(index + 8)].copy_from_slice(&(value.len() as u64).to_be_bytes());
-    index += 8;
-    output[index..(index + value.len())].copy_from_slice(value);
-    index += value.len();
-    index
-}
-
 // Provides a simple zero-copy way to access entries
 //
 // Entry format is:
@@ -113,8 +104,13 @@ impl<'a: 'b, 'b> LeafAccessor<'a, 'b> {
         EntryAccessor::new(&self.page.memory()[self.offset_of_lesser()..])
     }
 
-    fn greater(&self) -> EntryAccessor {
-        EntryAccessor::new(&self.page.memory()[self.offset_of_greater()..])
+    fn greater(&self) -> Option<EntryAccessor> {
+        let entry = EntryAccessor::new(&self.page.memory()[self.offset_of_greater()..]);
+        if entry.key_len() == 0 {
+            None
+        } else {
+            Some(entry)
+        }
     }
 }
 
@@ -148,6 +144,97 @@ impl<'a: 'b, 'b> LeafBuilder<'a, 'b> {
     }
 }
 
+// Provides a simple zero-copy way to access a leaf page
+//
+// Entry format is:
+// * (1 byte) type: 2 = INTERNAL
+// * (8 bytes) key_len
+// * (key_len bytes) key_data
+// * (8 bytes) lte_page: page number for keys <= key_data
+// * (8 bytes) gt_page: page number for keys > key_data
+struct InternalAccessor<'a: 'b, 'b> {
+    page: &'b Page<'a>,
+}
+
+impl<'a: 'b, 'b> InternalAccessor<'a, 'b> {
+    fn new(page: &'b Page<'a>) -> Self {
+        InternalAccessor { page }
+    }
+
+    fn key_len(&self) -> usize {
+        u64::from_be_bytes(self.page.memory()[1..9].try_into().unwrap()) as usize
+    }
+
+    fn key(&self) -> &[u8] {
+        &self.page.memory()[9..(9 + self.key_len())]
+    }
+
+    fn lte_page(&self) -> u64 {
+        let offset = 9 + self.key_len();
+        u64::from_be_bytes(self.page.memory()[offset..(offset + 8)].try_into().unwrap())
+    }
+
+    fn gt_page(&self) -> u64 {
+        let offset = 9 + self.key_len() + 8;
+        u64::from_be_bytes(self.page.memory()[offset..(offset + 8)].try_into().unwrap())
+    }
+}
+
+// Note the caller is responsible for ensuring that the buffer is large enough
+// and rewriting all fields if any dynamically sized fields are written
+struct InternalBuilder<'a: 'b, 'b> {
+    page: &'b mut PageMut<'a>,
+}
+
+impl<'a: 'b, 'b> InternalBuilder<'a, 'b> {
+    fn new(page: &'b mut PageMut<'a>) -> Self {
+        page.memory_mut()[0] = INTERNAL;
+        InternalBuilder { page }
+    }
+
+    fn key_len(&self) -> usize {
+        u64::from_be_bytes(self.page.memory()[1..9].try_into().unwrap()) as usize
+    }
+
+    fn write_key(&mut self, key: &[u8]) {
+        self.page.memory_mut()[1..9].copy_from_slice(&(key.len() as u64).to_be_bytes());
+        self.page.memory_mut()[9..(9 + key.len())].copy_from_slice(key);
+    }
+
+    fn write_lte_page(&mut self, page_number: u64) {
+        let offset = 9 + self.key_len();
+        self.page.memory_mut()[offset..(offset + 8)].copy_from_slice(&page_number.to_be_bytes());
+    }
+
+    fn write_gt_page(&mut self, page_number: u64) {
+        let offset = 9 + self.key_len() + 8;
+        self.page.memory_mut()[offset..(offset + 8)].copy_from_slice(&page_number.to_be_bytes());
+    }
+}
+
+// Returns the number of key-value pairs in the tree
+pub(crate) fn tree_size<'a>(page: Page<'a>, manager: &'a PageManager) -> usize {
+    let node_mem = page.memory();
+    match node_mem[0] {
+        LEAF => {
+            let accessor = LeafAccessor::new(&page);
+            if accessor.greater().is_some() {
+                2
+            } else {
+                1
+            }
+        }
+        INTERNAL => {
+            let accessor = InternalAccessor::new(&page);
+            let left_page = accessor.lte_page();
+            let right_page = accessor.gt_page();
+            tree_size(manager.get_page(left_page), manager)
+                + tree_size(manager.get_page(right_page), manager)
+        }
+        _ => unreachable!(),
+    }
+}
+
 /// Returns a tuple of the form `(Page<'a>, usize, usize)` representing the value for a queried key within a binary tree if present.
 ///
 /// The binary tree is composed of Nodes serialized into `Page`s and maintained by a `PageManager`. This function attempts to locate a key within this tree and if found, returns a tuple where:
@@ -178,8 +265,7 @@ pub(crate) fn lookup_in_raw<'a>(
     manager: &'a PageManager,
 ) -> Option<(Page<'a>, usize, usize)> {
     let node_mem = page.memory();
-    let mut index = 0;
-    match node_mem[index] {
+    match node_mem[0] {
         LEAF => {
             // Leaf node
             let accessor = LeafAccessor::new(&page);
@@ -191,10 +277,9 @@ pub(crate) fn lookup_in_raw<'a>(
                     Some((page, offset, value_len))
                 }
                 Ordering::Greater => {
-                    if query == accessor.greater().key() {
-                        let offset =
-                            accessor.offset_of_greater() + accessor.greater().value_offset();
-                        let value_len = accessor.greater().value().len();
+                    if let Some(entry) = accessor.greater() {
+                        let offset = accessor.offset_of_greater() + entry.value_offset();
+                        let value_len = entry.value().len();
                         Some((page, offset, value_len))
                     } else {
                         None
@@ -203,16 +288,10 @@ pub(crate) fn lookup_in_raw<'a>(
             }
         }
         INTERNAL => {
-            index += 1;
-            let key_len =
-                u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap()) as usize;
-            index += 8;
-            let key = &node_mem[index..(index + key_len)];
-            index += key_len;
-            let left_page = u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap());
-            index += 8;
-            let right_page = u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap());
-            if query <= key {
+            let accessor = InternalAccessor::new(&page);
+            let left_page = accessor.lte_page();
+            let right_page = accessor.gt_page();
+            if query <= accessor.key() {
                 lookup_in_raw(manager.get_page(left_page), query, manager)
             } else {
                 lookup_in_raw(manager.get_page(right_page), query, manager)
@@ -248,14 +327,10 @@ impl Node {
                 let left_page = left.to_bytes(page_manager);
                 let right_page = right.to_bytes(page_manager);
                 let mut page = page_manager.allocate();
-                let mut index = 0;
-                let output = page.memory_mut();
-                output[index] = INTERNAL;
-                index += 1;
-                index = write_vec(key, output, index);
-                output[index..(index + 8)].copy_from_slice(&left_page.to_be_bytes());
-                index += 8;
-                output[index..(index + 8)].copy_from_slice(&right_page.to_be_bytes());
+                let mut builder = InternalBuilder::new(&mut page);
+                builder.write_key(key);
+                builder.write_lte_page(left_page);
+                builder.write_gt_page(right_page);
 
                 page.get_page_number()
             }
