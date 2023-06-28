@@ -11,7 +11,7 @@ authors = ["Angold Wang <awang@weids.dev>"]
 # Libraries directly used in the project.
 [dependencies]
 memmap2 = "0.3.0"
-
+page_size = "0.4.2"
 
 # Libraries that are only used for development
 [dev-dependencies]

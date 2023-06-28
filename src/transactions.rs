@@ -74,4 +74,12 @@ impl<'mmap> ReadOnlyTransaction<'mmap> {
     pub fn get(&self, key: &[u8]) -> Result<Option<AccessGuard<'mmap>>, Error> {
         self.storage.get(key)
     }
+
+    pub fn len(&self) -> Result<usize, Error> {
+        self.storage.len()
+    }
+
+    pub fn is_empty(&self) -> Result<bool, Error> {
+        self.storage.len().map(|x| x == 0)
+    }
 }

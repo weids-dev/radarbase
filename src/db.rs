@@ -23,8 +23,12 @@ impl Database {
             .create(true)
             .open(path)?;
 
-        // TODO: what value should we use here?
-        file.set_len(4 * 1024 * 1024 * 1024)?;
+        // TODO: make this configurable
+        let mut db_size = 4 * 1024 * 1024 * 1024;
+        // Ensure that db_size is a multiple of page size, which is required by mmap
+        // page_size::get() to retrieve the memory page size of the current system.
+        db_size -= db_size % page_size::get();
+        file.set_len(db_size as u64)?;
 
         let mmap = MmapMut::map_mut(&file)?;
         let storage = Storage::new(mmap);

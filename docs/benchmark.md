@@ -4,6 +4,14 @@
 
 ## Timeline (newest to oldest)
 
+* **06-25-2023 Binary Tree Index** 
+```
+radarbase: Loaded 100000 items in 409ms
+radarbase: Random read 100000 items in 51ms
+radarbase: Random read 100000 items in 41ms
+radarbase: Random read 100000 items in 42ms
+```
+
 * **06-23-2023 Binary Tree Index**
 ```
 Running benches/radb_benchmark.rs (target/release/deps/radb_benchmark-53f9308c52ec9e61)
