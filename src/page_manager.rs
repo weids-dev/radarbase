@@ -28,7 +28,6 @@ pub(crate) struct PageMut<'a> {
 }
 
 impl<'a> PageMut<'a> {
-    #[allow(dead_code)]
     pub(crate) fn memory(&self) -> &[u8] {
         &self.mem
     }
