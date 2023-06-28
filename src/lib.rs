@@ -1,5 +1,6 @@
 mod db;
 mod error;
+mod page_manager;
 mod storage;
 mod table;
 mod transactions;

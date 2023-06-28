@@ -1,7 +1,11 @@
 use crate::binarytree::Node::{Internal, Leaf};
+use crate::page_manager::{Page, PageManager};
 use std::cell::Cell;
 use std::cmp::Ordering;
 use std::convert::TryInto;
+
+const LEAF: u8 = 1;
+const INTERNAL: u8 = 2;
 
 /// Writes a vector to a byte array.
 fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
@@ -12,85 +16,93 @@ fn write_vec(value: &[u8], output: &mut [u8], mut index: usize) -> usize {
     index
 }
 
-/// Returns the `(offset, len)` of the value for a queried key within a binary tree, if present.
+/// Returns a tuple of the form `(Page<'a>, usize, usize)` representing the value for a queried key within a binary tree if present.
 ///
-/// The binary tree is represented as a byte array. This function is used to find the
-/// offset and length of a value associated with a given key.
+/// The binary tree is composed of Nodes serialized into `Page`s and maintained by a `PageManager`. This function attempts to locate a key within this tree and if found, returns a tuple where:
+/// - The first element is the `Page` in which the value is located
+/// - The second element is the offset within that page where the value begins
+/// - The third element is the length of the value
 ///
-/// Given a key, the function starts from the root of the tree and moves either to the left
-/// or the right child depending on whether the key is less than or more than the current
-/// node's key. This process continues until the key is found or it is determined that the
-/// key does not exist in the tree.
+/// Given a key, the function begins at the root of the tree and traverses to the left or right child depending on whether the key is less or greater than the current node's key. The process is recursive and continues until the key is either found or it is determined that the key does not exist in the tree.
+///
+/// This function might not be space efficient since it allocates a whole page for each node, leading to a waste of space when nodes don't fully occupy their corresponding pages. Future optimizations could involve storing multiple nodes within a single page, or having variable size pages to better match the size of nodes.
 ///
 /// # Arguments
 ///
-/// * `tree` - The byte array representing the binary tree.
-/// * `query` - The key being queried.
-/// * `index` - The initial index to start the lookup from within the byte array.
+/// * `page` - The `Page` object representing the current node being inspected.
+/// * `query` - The key being searched for.
+/// * `manager` - The `PageManager` managing the pages.
 ///
 /// # Returns
 ///
-/// An `Option` that contains a tuple `(usize, usize)`. The first element is the offset
-/// of the value within the byte array. The second element is the length of the value.
-/// If the key is not found in the tree, it returns `None`.
+/// An `Option` that contains a tuple `(Page<'a>, usize, usize)`. If the key is found, it returns `Some`, with the `Page` containing the value, the offset of the value within the page, and the length of the value. If the key is not found in the tree, it returns `None`.
 ///
 /// # Panics
 ///
-/// This function will panic if it encounters a byte in the tree array that does not
-/// correspond to a recognized node type (1 or 2).
-pub(crate) fn lookup_in_raw(tree: &[u8], query: &[u8], mut index: usize) -> Option<(usize, usize)> {
-    match tree[index] {
-        1 => {
+/// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a recognized node type (1 for leaf node or 2 for internal node).
+pub(crate) fn lookup_in_raw<'a>(
+    page: Page<'a>,
+    query: &[u8],
+    manager: &'a PageManager,
+) -> Option<(Page<'a>, usize, usize)> {
+    let node_mem = page.memory();
+    let mut index = 0;
+    match node_mem[index] {
+        LEAF => {
             // Leaf node
             index += 1;
-            let key_len = u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap()) as usize;
+            let key_len =
+                u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap()) as usize;
             index += 8;
 
-            match query.cmp(&tree[index..(index + key_len)]) {
+            match query.cmp(&node_mem[index..(index + key_len)]) {
                 Ordering::Less => None,
                 Ordering::Equal => {
                     index += key_len;
                     let value_len =
-                        u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap()) as usize;
+                        u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap())
+                            as usize;
                     index += 8;
-                    Some((index, value_len))
+                    Some((page, index, value_len))
                 }
                 Ordering::Greater => {
                     index += key_len;
                     let value_len =
-                        u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap()) as usize;
+                        u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap())
+                            as usize;
                     index += 8 + value_len;
                     let second_key_len =
-                        u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap()) as usize;
+                        u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap())
+                            as usize;
                     index += 8;
-                    if query == &tree[index..(index + second_key_len)] {
+                    if query == &node_mem[index..(index + second_key_len)] {
                         index += second_key_len;
                         let value_len =
-                            u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap())
+                            u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap())
                                 as usize;
                         index += 8;
-                        Some((index, value_len))
+                        Some((page, index, value_len))
                     } else {
                         None
                     }
                 }
             }
         }
-        2 => {
+        INTERNAL => {
             index += 1;
-            let key_len = u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap()) as usize;
+            let key_len =
+                u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap()) as usize;
             index += 8;
+            let key = &node_mem[index..(index + key_len)];
             index += key_len;
-            if query <= &tree[(index - key_len)..index] {
-                // Skip left-node length
-                index += 8;
+            let left_page = u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap());
+            index += 8;
+            let right_page = u64::from_be_bytes(node_mem[index..(index + 8)].try_into().unwrap());
+            if query <= key {
+                lookup_in_raw(manager.get_page(left_page), query, manager)
             } else {
-                // Skip left-node
-                let left_node_len =
-                    u64::from_be_bytes(tree[index..(index + 8)].try_into().unwrap()) as usize;
-                index += 8 + left_node_len;
+                lookup_in_raw(manager.get_page(right_page), query, manager)
             }
-            lookup_in_raw(tree, query, index)
         }
         _ => unreachable!(),
     }
@@ -100,66 +112,47 @@ pub(crate) fn lookup_in_raw(tree: &[u8], query: &[u8], mut index: usize) -> Opti
 pub(crate) enum Node {
     // To decrease the height of the tree, each leaf node may have two key-value pairs
     Leaf((Vec<u8>, Vec<u8>), Option<(Vec<u8>, Vec<u8>)>),
-
     Internal(Box<Node>, Vec<u8>, Box<Node>),
 }
 
 impl Node {
-    /// Returns the size of the node in bytes
-    pub(crate) fn recursive_size(&self) -> usize {
+    // Returns the page number that the node was written to
+    pub(crate) fn to_bytes(&self, page_manager: &PageManager) -> u64 {
         match self {
             Node::Leaf(left_val, right_val) => {
-                let mut size = 1; // 1 byte for node type
-                size += 8 + left_val.0.len() + 8 + left_val.1.len();
-                if let Some(right) = right_val {
-                    size += 8 + right.0.len() + 8 + right.1.len();
-                } else {
-                    // empty right val stored as a single 0 length key
-                    size += 8;
-                }
-                size
-            }
-            Node::Internal(left, key, right) => {
-                let mut size = 1; // 1 byte for node type
-                size += 8 + key.len();
-                // Reserve space to prefix the left node with its size, so that we can skip it
-                // efficiently
-                size += 8 + left.recursive_size();
-                size += right.recursive_size();
-                size
-            }
-        }
-    }
-
-    /// Returns the index following the last written
-    pub(crate) fn to_bytes(&self, output: &mut [u8], mut index: usize) -> usize {
-        match self {
-            Node::Leaf(left_val, right_val) => {
-                output[index] = 1;
+                let mut page = page_manager.allocate();
+                let mut index = 0;
+                let output = page.memory_mut();
+                output[index] = LEAF;
                 index += 1;
                 index = write_vec(&left_val.0, output, index);
                 index = write_vec(&left_val.1, output, index);
                 if let Some(right) = right_val {
                     index = write_vec(&right.0, output, index);
-                    index = write_vec(&right.1, output, index);
+                    write_vec(&right.1, output, index);
                 } else {
                     // empty right val stored as a single 0 length key
-                    index = write_vec(&[], output, index);
+                    write_vec(&[], output, index);
                 }
+
+                page.get_page_number()
             }
             Node::Internal(left, key, right) => {
-                output[index] = 2;
+                let left_page = left.to_bytes(page_manager);
+                let right_page = right.to_bytes(page_manager);
+                let mut page = page_manager.allocate();
+                let mut index = 0;
+                let output = page.memory_mut();
+                output[index] = INTERNAL;
                 index += 1;
                 index = write_vec(key, output, index);
-                let left_size = left.recursive_size();
-                output[index..(index + 8)].copy_from_slice(&(left_size as u64).to_be_bytes());
+                output[index..(index + 8)].copy_from_slice(&left_page.to_be_bytes());
                 index += 8;
-                index = left.to_bytes(output, index);
-                index = right.to_bytes(output, index);
+                output[index..(index + 8)].copy_from_slice(&right_page.to_be_bytes());
+
+                page.get_page_number()
             }
         }
-
-        index
     }
 
     /// Returns the maximum key in the tree
@@ -286,14 +279,6 @@ mod test {
         );
         let right = Leaf((b"hello3".to_vec(), b"world3".to_vec()), None);
         Internal(Box::new(left), b"hello2".to_vec(), Box::new(right))
-    }
-
-    #[test]
-    fn serialize() {
-        let internal = gen_tree();
-        let size = internal.recursive_size();
-        let mut buffer = vec![0u8; size];
-        internal.to_bytes(&mut buffer, 0);
     }
 
     #[test]
