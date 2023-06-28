@@ -247,15 +247,61 @@
 <a href="#247" id="247">247</a>
 <a href="#248" id="248">248</a>
 <a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{lookup_in_raw, BinarytreeBuilder};
+<span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, ALL_MEMORY_HACK, DB_METADATA_PAGE};
 <span class="kw">use </span><span class="kw">crate</span>::Error;
 <span class="kw">use </span>memmap2::MmapMut;
-<span class="kw">use </span>std::cell::{Ref, RefCell};
 <span class="kw">use </span>std::convert::TryInto;
 
-<span class="kw">const </span>MAGICNUMBER: [u8; <span class="number">4</span>] = [<span class="string">b&#39;r&#39;</span>, <span class="string">b&#39;e&#39;</span>, <span class="string">b&#39;d&#39;</span>, <span class="string">b&#39;b&#39;</span>];
-<span class="kw">const </span>DATA_LEN: usize = MAGICNUMBER.len();
-<span class="kw">const </span>DATA_OFFSET: usize = DATA_LEN + <span class="number">8</span>;
+<span class="kw">const </span>MAGICNUMBER: [u8; <span class="number">4</span>] = [<span class="string">b&#39;r&#39;</span>, <span class="string">b&#39;a&#39;</span>, <span class="string">b&#39;d&#39;</span>, <span class="string">b&#39;b&#39;</span>];
+<span class="kw">const </span>ALLOCATOR_STATE_OFFSET: usize = MAGICNUMBER.len();
+<span class="kw">const </span>ROOT_PAGE_OFFSET: usize = ALLOCATOR_STATE_OFFSET + PageManager::state_size();
+<span class="kw">const </span>DATA_LEN_OFFSET: usize = ROOT_PAGE_OFFSET + PageManager::state_size();
+<span class="kw">const </span>DATA_OFFSET: usize = DATA_LEN_OFFSET + <span class="number">8</span>;
+<span class="kw">const </span>DB_METADATA_SIZE: usize = DATA_OFFSET;
 <span class="kw">const </span>ENTRY_DELETED: u8 = <span class="number">1</span>;
 
 <span class="comment">// Provides a simple zero-copy way to access entries
@@ -339,52 +385,58 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Storage {
-    mmap: RefCell&lt;MmapMut&gt;,
+    mem: PageManager,
 }
 
 <span class="kw">impl </span>Storage {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(mmap: MmapMut) -&gt; Storage {
-        <span class="comment">// Mutate data even there are immutable reference to that data
-        </span>Storage {
-            mmap: RefCell::new(mmap),
-        }
-    }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(<span class="kw-2">mut </span>mmap: MmapMut) -&gt; <span class="prelude-ty">Result</span>&lt;Storage, Error&gt; {
+        <span class="comment">// Ensure that the database metadata fits into the first page
+        </span><span class="macro">assert!</span>(page_size::get() &gt;= DB_METADATA_SIZE);
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>initialize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>mmap = <span class="self">self</span>.mmap.borrow_mut();
-        <span class="kw">if </span>mmap[<span class="number">0</span>..MAGICNUMBER.len()] == MAGICNUMBER {
-            <span class="comment">// Already initialized, nothing to do
-            </span><span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        <span class="kw">if </span>mmap[<span class="number">0</span>..MAGICNUMBER.len()] != MAGICNUMBER {
+            PageManager::initialize(
+                <span class="kw-2">&amp;mut </span>mmap
+                    [ALLOCATOR_STATE_OFFSET..(ALLOCATOR_STATE_OFFSET + PageManager::state_size())],
+            );
+            mmap[ROOT_PAGE_OFFSET..(ROOT_PAGE_OFFSET + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span><span class="number">0u64</span>.to_be_bytes());
+            mmap[DATA_LEN_OFFSET..(DATA_LEN_OFFSET + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span><span class="number">0u64</span>.to_be_bytes());
+            mmap.flush()<span class="question-mark">?</span>;
+            <span class="comment">// Write the magic number only after the data structure is initialized and written to disk
+            // to ensure that it&#39;s crash safe
+            </span>mmap[<span class="number">0</span>..MAGICNUMBER.len()].copy_from_slice(<span class="kw-2">&amp;</span>MAGICNUMBER);
+            mmap.flush()<span class="question-mark">?</span>;
         }
-        mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span><span class="number">0u64</span>.to_be_bytes());
-        <span class="comment">// indicate that there are no entries
-        </span>mmap.flush()<span class="question-mark">?</span>;
-        <span class="comment">// Write the magic number only after the data structure is initialized and written to disk
-        // to ensure that it&#39;s crash safe
-        </span>mmap[<span class="number">0</span>..MAGICNUMBER.len()].copy_from_slice(<span class="kw-2">&amp;</span>MAGICNUMBER);
-        mmap.flush()<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(Storage {
+            mem: PageManager::restore(mmap, ALLOCATOR_STATE_OFFSET),
+        })
     }
 
     <span class="doccomment">/// Append a new key &amp; value to the end of the file
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>append(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], value: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>mmap = <span class="self">self</span>.mmap.borrow_mut();
-        <span class="kw">let </span><span class="kw-2">mut </span>data_len =
-            u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+        <span class="kw">let </span><span class="kw-2">mut </span>all_mem = <span class="self">self</span>.mem.get_page_mut(ALL_MEMORY_HACK);
+        <span class="kw">let </span>mmap = all_mem.memory_mut();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>data_len = u64::from_be_bytes(
+            mmap[DATA_LEN_OFFSET..(DATA_LEN_OFFSET + <span class="number">8</span>)]
+                .try_into()
+                .unwrap(),
+        ) <span class="kw">as </span>usize;
         <span class="comment">// number of entries (stored in the first 8 bytes of the file after the magic number)
 
         // do not check whether it is a duplicate key, just append it to the end
         </span><span class="kw">let </span><span class="kw-2">mut </span>index = DATA_OFFSET + data_len;
 
-        <span class="comment">// Append the new key &amp; value
+        <span class="comment">// Append the new key &amp; value to the end of the data section
+        // But that will damage the btree, so we should call fsync() to rebuild the btree
         </span><span class="kw">let </span><span class="kw-2">mut </span>mutator = EntryMutator::new(<span class="kw-2">&amp;mut </span>mmap[index..]);
+        mutator.write_flags(<span class="number">0</span>);
         mutator.write_key(key);
         mutator.write_value(value);
         index += mutator.raw_len();
         data_len = index - DATA_OFFSET;
 
-        mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>data_len.to_be_bytes());
+        mmap[DATA_LEN_OFFSET..(DATA_LEN_OFFSET + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>data_len.to_be_bytes());
         <span class="comment">// update the number of entries
 
         </span><span class="prelude-val">Ok</span>(())
@@ -392,9 +444,13 @@
 
     <span class="doccomment">/// Get the number of entries
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="kw">let </span>mmap = <span class="self">self</span>.mmap.borrow();
-        <span class="kw">let </span>data_len =
-            u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+        <span class="kw">let </span>all_mem = <span class="self">self</span>.mem.get_page(ALL_MEMORY_HACK);
+        <span class="kw">let </span>mmap = all_mem.memory();
+        <span class="kw">let </span>data_len = u64::from_be_bytes(
+            mmap[DATA_LEN_OFFSET..(DATA_LEN_OFFSET + <span class="number">8</span>)]
+                .try_into()
+                .unwrap(),
+        ) <span class="kw">as </span>usize;
 
         <span class="kw">let </span><span class="kw-2">mut </span>index = DATA_OFFSET;
 
@@ -410,13 +466,32 @@
         <span class="prelude-val">Ok</span>(entries)
     }
 
+    <span class="kw">fn </span>get_root_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Page&gt; {
+        <span class="kw">let </span>metapage = <span class="self">self</span>.mem.get_page(DB_METADATA_PAGE);
+        <span class="kw">let </span>mmap = metapage.memory();
+        <span class="kw">let </span>root_page_number = u64::from_be_bytes(
+            mmap[ROOT_PAGE_OFFSET..(ROOT_PAGE_OFFSET + <span class="number">8</span>)]
+                .try_into()
+                .unwrap(),
+        );
+        <span class="kw">if </span>root_page_number == <span class="number">0 </span>{
+            <span class="prelude-val">None
+        </span>} <span class="kw">else </span>{
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.mem.get_page(root_page_number))
+        }
+    }
+
     <span class="doccomment">/// Flush the data to disk, and rebuild the binary tree
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fsync(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>mmap = <span class="self">self</span>.mmap.borrow_mut();
+        <span class="kw">let </span>all_mem = <span class="self">self</span>.mem.get_page(ALL_MEMORY_HACK);
+        <span class="kw">let </span>mmap = all_mem.memory();
 
-        <span class="kw">let </span>data_len =
-            u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+        <span class="kw">let </span>data_len = u64::from_be_bytes(
+            mmap[DATA_LEN_OFFSET..(DATA_LEN_OFFSET + <span class="number">8</span>)]
+                .try_into()
+                .unwrap(),
+        ) <span class="kw">as </span>usize;
 
         <span class="kw">let </span><span class="kw-2">mut </span>index = DATA_OFFSET;
         <span class="kw">while </span>index &lt; (DATA_OFFSET + data_len) {
@@ -428,70 +503,81 @@
         }
 
         <span class="kw">let </span>node = builder.build(); <span class="comment">// rebuild the binary tree
-        </span><span class="macro">assert!</span>(DATA_OFFSET + data_len + node.recursive_size() &lt; mmap.len());
+        </span><span class="self">self</span>.mem
+            .hack_set_free_page_to_next_after((DATA_OFFSET + data_len) <span class="kw">as </span>u64);
 
-        node.to_bytes(<span class="kw-2">&amp;mut </span>mmap[(DATA_OFFSET + data_len)..], <span class="number">0</span>);
-        <span class="comment">// write the binary tree to the end of the file
+        <span class="comment">// Need to drop this because to_bytes() needs to be able to acquire mutable memory
+        // TODO: fix the allocator so that mutable and immutable pages can co-exist,
+        // as long as they are different pages
+        </span>drop(all_mem);
+        <span class="kw">let </span>root_page = node.to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem);
 
-        </span>mmap.flush()<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>all_mem = <span class="self">self</span>.mem.get_page_mut(ALL_MEMORY_HACK);
+        <span class="kw">let </span>mmap = all_mem.memory_mut();
+        mmap[ROOT_PAGE_OFFSET..(ROOT_PAGE_OFFSET + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>root_page.to_be_bytes());
+
+        <span class="self">self</span>.mem.store_state(
+            <span class="kw-2">&amp;mut </span>mmap[ALLOCATOR_STATE_OFFSET..(ALLOCATOR_STATE_OFFSET + PageManager::state_size())],
+        );
+
+        drop(all_mem);
+        <span class="self">self</span>.mem.fsync()<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&gt;, Error&gt; {
-        <span class="kw">let </span>mmap = <span class="self">self</span>.mmap.borrow();
-
-        <span class="kw">let </span>data_len =
-            u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
-
-        <span class="kw">let </span>index = DATA_OFFSET + data_len; <span class="comment">// get the offset of the binary tree
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((offset, len)) = lookup_in_raw(<span class="kw-2">&amp;</span>mmap, key, index) {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(AccessGuard::Mmap(mmap, offset, len)))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(root_page) = <span class="self">self</span>.get_root_page() {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((page, offset, len)) = lookup_in_raw(root_page, key, <span class="kw-2">&amp;</span><span class="self">self</span>.mem) {
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(AccessGuard::PageBacked(page, offset, len)));
+            }
         }
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
     }
 
     <span class="comment">// Returns a boolean indicating if an entry was removed
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>mmap = <span class="self">self</span>.mmap.borrow_mut();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(root_page) = <span class="self">self</span>.get_root_page() {
+            <span class="kw">if </span>lookup_in_raw(root_page, key, <span class="kw-2">&amp;</span><span class="self">self</span>.mem).is_some() {
+                <span class="kw">let </span><span class="kw-2">mut </span>all_mem = <span class="self">self</span>.mem.get_page_mut(ALL_MEMORY_HACK);
+                <span class="kw">let </span>mmap = all_mem.memory_mut();
+                <span class="comment">// Delete the entry from the entry space
+                </span><span class="kw">let </span>data_len = u64::from_be_bytes(
+                    mmap[DATA_LEN_OFFSET..(DATA_LEN_OFFSET + <span class="number">8</span>)]
+                        .try_into()
+                        .unwrap(),
+                ) <span class="kw">as </span>usize;
 
-        <span class="kw">let </span>data_len =
-            u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
-
-        <span class="kw">let </span>index = DATA_OFFSET + data_len;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="kw">_</span>)) = lookup_in_raw(<span class="kw-2">&amp;</span>mmap, key, index) {
-            <span class="comment">// Delete the entry from the entry space
-            </span><span class="kw">let </span>data_len =
-                u64::from_be_bytes(mmap[DATA_LEN..(DATA_LEN + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
-
-            <span class="kw">let </span><span class="kw-2">mut </span>index = DATA_OFFSET;
-            <span class="kw">while </span>index &lt; (DATA_OFFSET + data_len) {
-                <span class="kw">let </span>entry = EntryAccessor::new(<span class="kw-2">&amp;</span>mmap[index..]);
-                <span class="kw">if </span>entry.key() == key {
-                    drop(entry);
-                    <span class="kw">let </span><span class="kw-2">mut </span>entry = EntryMutator::new(<span class="kw-2">&amp;mut </span>mmap[index..]);
-                    entry.write_flags(ENTRY_DELETED);
-                    <span class="kw">break</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>index = DATA_OFFSET;
+                <span class="kw">while </span>index &lt; (DATA_OFFSET + data_len) {
+                    <span class="kw">let </span>entry = EntryAccessor::new(<span class="kw-2">&amp;</span>mmap[index..]);
+                    <span class="kw">if </span>entry.key() == key {
+                        drop(entry);
+                        <span class="kw">let </span><span class="kw-2">mut </span>entry = EntryMutator::new(<span class="kw-2">&amp;mut </span>mmap[index..]);
+                        entry.write_flags(ENTRY_DELETED);
+                        <span class="kw">break</span>;
+                    }
+                    index += entry.raw_len();
                 }
-                index += entry.raw_len();
+
+                drop(all_mem);
+                <span class="self">self</span>.mem.fsync()<span class="question-mark">?</span>;
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
             }
-            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
         }
+        <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
     }
 }
 
 <span class="kw">pub enum </span>AccessGuard&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="comment">// Either a reference to the mmap or a reference to the local data in memory
-    </span>Mmap(Ref&lt;<span class="lifetime">&#39;a</span>, MmapMut&gt;, usize, usize), <span class="comment">// offset and length, keep it alive
-    </span>Local(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]),
+    </span>PageBacked(Page&lt;<span class="lifetime">&#39;a</span>&gt;, usize, usize),
+    Local(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]),
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;mmap</span>&gt; AsRef&lt;[u8]&gt; <span class="kw">for </span>AccessGuard&lt;<span class="lifetime">&#39;mmap</span>&gt; {
     <span class="kw">fn </span>as_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
         <span class="kw">match </span><span class="self">self </span>{
-            AccessGuard::Mmap(mmap_ref, offset, len) =&gt; <span class="kw-2">&amp;</span>mmap_ref[<span class="kw-2">*</span>offset..(<span class="kw-2">*</span>offset + <span class="kw-2">*</span>len)],
+            AccessGuard::PageBacked(page, offset, len) =&gt; <span class="kw-2">&amp;</span>page.memory()[<span class="kw-2">*</span>offset..(<span class="kw-2">*</span>offset + <span class="kw-2">*</span>len)],
             AccessGuard::Local(data_ref) =&gt; data_ref,
         }
     }

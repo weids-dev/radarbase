@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Node"],"fn":["lookup_in_raw","write_vec"],"struct":["BinarytreeBuilder"]};
+window.SIDEBAR_ITEMS = {"constant":["INTERNAL","LEAF"],"enum":["Node"],"fn":["lookup_in_raw","write_vec"],"struct":["BinarytreeBuilder"]};

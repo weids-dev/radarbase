@@ -292,25 +292,14 @@
 <a href="#292" id="292">292</a>
 <a href="#293" id="293">293</a>
 <a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::Node::{Internal, Leaf};
+<span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager};
 <span class="kw">use </span>std::cell::Cell;
 <span class="kw">use </span>std::cmp::Ordering;
 <span class="kw">use </span>std::convert::TryInto;
+
+<span class="kw">const </span>LEAF: u8 = <span class="number">1</span>;
+<span class="kw">const </span>INTERNAL: u8 = <span class="number">2</span>;
 
 <span class="doccomment">/// Writes a vector to a byte array.
 </span><span class="kw">fn </span>write_vec(value: <span class="kw-2">&amp;</span>[u8], output: <span class="kw-2">&amp;mut </span>[u8], <span class="kw-2">mut </span>index: usize) -&gt; usize {
@@ -321,85 +310,93 @@
     index
 }
 
-<span class="doccomment">/// Returns the `(offset, len)` of the value for a queried key within a binary tree, if present.
+<span class="doccomment">/// Returns a tuple of the form `(Page&lt;&#39;a&gt;, usize, usize)` representing the value for a queried key within a binary tree if present.
 ///
-/// The binary tree is represented as a byte array. This function is used to find the
-/// offset and length of a value associated with a given key.
+/// The binary tree is composed of Nodes serialized into `Page`s and maintained by a `PageManager`. This function attempts to locate a key within this tree and if found, returns a tuple where:
+/// - The first element is the `Page` in which the value is located
+/// - The second element is the offset within that page where the value begins
+/// - The third element is the length of the value
 ///
-/// Given a key, the function starts from the root of the tree and moves either to the left
-/// or the right child depending on whether the key is less than or more than the current
-/// node&#39;s key. This process continues until the key is found or it is determined that the
-/// key does not exist in the tree.
+/// Given a key, the function begins at the root of the tree and traverses to the left or right child depending on whether the key is less or greater than the current node&#39;s key. The process is recursive and continues until the key is either found or it is determined that the key does not exist in the tree.
+///
+/// This function might not be space efficient since it allocates a whole page for each node, leading to a waste of space when nodes don&#39;t fully occupy their corresponding pages. Future optimizations could involve storing multiple nodes within a single page, or having variable size pages to better match the size of nodes.
 ///
 /// # Arguments
 ///
-/// * `tree` - The byte array representing the binary tree.
-/// * `query` - The key being queried.
-/// * `index` - The initial index to start the lookup from within the byte array.
+/// * `page` - The `Page` object representing the current node being inspected.
+/// * `query` - The key being searched for.
+/// * `manager` - The `PageManager` managing the pages.
 ///
 /// # Returns
 ///
-/// An `Option` that contains a tuple `(usize, usize)`. The first element is the offset
-/// of the value within the byte array. The second element is the length of the value.
-/// If the key is not found in the tree, it returns `None`.
+/// An `Option` that contains a tuple `(Page&lt;&#39;a&gt;, usize, usize)`. If the key is found, it returns `Some`, with the `Page` containing the value, the offset of the value within the page, and the length of the value. If the key is not found in the tree, it returns `None`.
 ///
 /// # Panics
 ///
-/// This function will panic if it encounters a byte in the tree array that does not
-/// correspond to a recognized node type (1 or 2).
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_in_raw(tree: <span class="kw-2">&amp;</span>[u8], query: <span class="kw-2">&amp;</span>[u8], <span class="kw-2">mut </span>index: usize) -&gt; <span class="prelude-ty">Option</span>&lt;(usize, usize)&gt; {
-    <span class="kw">match </span>tree[index] {
-        <span class="number">1 </span>=&gt; {
+/// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a recognized node type (1 for leaf node or 2 for internal node).
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_in_raw&lt;<span class="lifetime">&#39;a</span>&gt;(
+    page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
+    query: <span class="kw-2">&amp;</span>[u8],
+    manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
+) -&gt; <span class="prelude-ty">Option</span>&lt;(Page&lt;<span class="lifetime">&#39;a</span>&gt;, usize, usize)&gt; {
+    <span class="kw">let </span>node_mem = page.memory();
+    <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
+    <span class="kw">match </span>node_mem[index] {
+        LEAF =&gt; {
             <span class="comment">// Leaf node
             </span>index += <span class="number">1</span>;
-            <span class="kw">let </span>key_len = u64::from_be_bytes(tree[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+            <span class="kw">let </span>key_len =
+                u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
             index += <span class="number">8</span>;
 
-            <span class="kw">match </span>query.cmp(<span class="kw-2">&amp;</span>tree[index..(index + key_len)]) {
+            <span class="kw">match </span>query.cmp(<span class="kw-2">&amp;</span>node_mem[index..(index + key_len)]) {
                 Ordering::Less =&gt; <span class="prelude-val">None</span>,
                 Ordering::Equal =&gt; {
                     index += key_len;
                     <span class="kw">let </span>value_len =
-                        u64::from_be_bytes(tree[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+                        u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap())
+                            <span class="kw">as </span>usize;
                     index += <span class="number">8</span>;
-                    <span class="prelude-val">Some</span>((index, value_len))
+                    <span class="prelude-val">Some</span>((page, index, value_len))
                 }
                 Ordering::Greater =&gt; {
                     index += key_len;
                     <span class="kw">let </span>value_len =
-                        u64::from_be_bytes(tree[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+                        u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap())
+                            <span class="kw">as </span>usize;
                     index += <span class="number">8 </span>+ value_len;
                     <span class="kw">let </span>second_key_len =
-                        u64::from_be_bytes(tree[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+                        u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap())
+                            <span class="kw">as </span>usize;
                     index += <span class="number">8</span>;
-                    <span class="kw">if </span>query == <span class="kw-2">&amp;</span>tree[index..(index + second_key_len)] {
+                    <span class="kw">if </span>query == <span class="kw-2">&amp;</span>node_mem[index..(index + second_key_len)] {
                         index += second_key_len;
                         <span class="kw">let </span>value_len =
-                            u64::from_be_bytes(tree[index..(index + <span class="number">8</span>)].try_into().unwrap())
+                            u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap())
                                 <span class="kw">as </span>usize;
                         index += <span class="number">8</span>;
-                        <span class="prelude-val">Some</span>((index, value_len))
+                        <span class="prelude-val">Some</span>((page, index, value_len))
                     } <span class="kw">else </span>{
                         <span class="prelude-val">None
                     </span>}
                 }
             }
         }
-        <span class="number">2 </span>=&gt; {
+        INTERNAL =&gt; {
             index += <span class="number">1</span>;
-            <span class="kw">let </span>key_len = u64::from_be_bytes(tree[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
+            <span class="kw">let </span>key_len =
+                u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
             index += <span class="number">8</span>;
+            <span class="kw">let </span>key = <span class="kw-2">&amp;</span>node_mem[index..(index + key_len)];
             index += key_len;
-            <span class="kw">if </span>query &lt;= <span class="kw-2">&amp;</span>tree[(index - key_len)..index] {
-                <span class="comment">// Skip left-node length
-                </span>index += <span class="number">8</span>;
+            <span class="kw">let </span>left_page = u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap());
+            index += <span class="number">8</span>;
+            <span class="kw">let </span>right_page = u64::from_be_bytes(node_mem[index..(index + <span class="number">8</span>)].try_into().unwrap());
+            <span class="kw">if </span>query &lt;= key {
+                lookup_in_raw(manager.get_page(left_page), query, manager)
             } <span class="kw">else </span>{
-                <span class="comment">// Skip left-node
-                </span><span class="kw">let </span>left_node_len =
-                    u64::from_be_bytes(tree[index..(index + <span class="number">8</span>)].try_into().unwrap()) <span class="kw">as </span>usize;
-                index += <span class="number">8 </span>+ left_node_len;
+                lookup_in_raw(manager.get_page(right_page), query, manager)
             }
-            lookup_in_raw(tree, query, index)
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
     }
@@ -409,66 +406,47 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Node {
     <span class="comment">// To decrease the height of the tree, each leaf node may have two key-value pairs
     </span>Leaf((Vec&lt;u8&gt;, Vec&lt;u8&gt;), <span class="prelude-ty">Option</span>&lt;(Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;),
-
     Internal(Box&lt;Node&gt;, Vec&lt;u8&gt;, Box&lt;Node&gt;),
 }
 
 <span class="kw">impl </span>Node {
-    <span class="doccomment">/// Returns the size of the node in bytes
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>recursive_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="comment">// Returns the page number that the node was written to
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, page_manager: <span class="kw-2">&amp;</span>PageManager) -&gt; u64 {
         <span class="kw">match </span><span class="self">self </span>{
             Node::Leaf(left_val, right_val) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">1</span>; <span class="comment">// 1 byte for node type
-                </span>size += <span class="number">8 </span>+ left_val.<span class="number">0</span>.len() + <span class="number">8 </span>+ left_val.<span class="number">1</span>.len();
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(right) = right_val {
-                    size += <span class="number">8 </span>+ right.<span class="number">0</span>.len() + <span class="number">8 </span>+ right.<span class="number">1</span>.len();
-                } <span class="kw">else </span>{
-                    <span class="comment">// empty right val stored as a single 0 length key
-                    </span>size += <span class="number">8</span>;
-                }
-                size
-            }
-            Node::Internal(left, key, right) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">1</span>; <span class="comment">// 1 byte for node type
-                </span>size += <span class="number">8 </span>+ key.len();
-                <span class="comment">// Reserve space to prefix the left node with its size, so that we can skip it
-                // efficiently
-                </span>size += <span class="number">8 </span>+ left.recursive_size();
-                size += right.recursive_size();
-                size
-            }
-        }
-    }
-
-    <span class="doccomment">/// Returns the index following the last written
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, output: <span class="kw-2">&amp;mut </span>[u8], <span class="kw-2">mut </span>index: usize) -&gt; usize {
-        <span class="kw">match </span><span class="self">self </span>{
-            Node::Leaf(left_val, right_val) =&gt; {
-                output[index] = <span class="number">1</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>page = page_manager.allocate();
+                <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
+                <span class="kw">let </span>output = page.memory_mut();
+                output[index] = LEAF;
                 index += <span class="number">1</span>;
                 index = write_vec(<span class="kw-2">&amp;</span>left_val.<span class="number">0</span>, output, index);
                 index = write_vec(<span class="kw-2">&amp;</span>left_val.<span class="number">1</span>, output, index);
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(right) = right_val {
                     index = write_vec(<span class="kw-2">&amp;</span>right.<span class="number">0</span>, output, index);
-                    index = write_vec(<span class="kw-2">&amp;</span>right.<span class="number">1</span>, output, index);
+                    write_vec(<span class="kw-2">&amp;</span>right.<span class="number">1</span>, output, index);
                 } <span class="kw">else </span>{
                     <span class="comment">// empty right val stored as a single 0 length key
-                    </span>index = write_vec(<span class="kw-2">&amp;</span>[], output, index);
+                    </span>write_vec(<span class="kw-2">&amp;</span>[], output, index);
                 }
+
+                page.get_page_number()
             }
             Node::Internal(left, key, right) =&gt; {
-                output[index] = <span class="number">2</span>;
+                <span class="kw">let </span>left_page = left.to_bytes(page_manager);
+                <span class="kw">let </span>right_page = right.to_bytes(page_manager);
+                <span class="kw">let </span><span class="kw-2">mut </span>page = page_manager.allocate();
+                <span class="kw">let </span><span class="kw-2">mut </span>index = <span class="number">0</span>;
+                <span class="kw">let </span>output = page.memory_mut();
+                output[index] = INTERNAL;
                 index += <span class="number">1</span>;
                 index = write_vec(key, output, index);
-                <span class="kw">let </span>left_size = left.recursive_size();
-                output[index..(index + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>(left_size <span class="kw">as </span>u64).to_be_bytes());
+                output[index..(index + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>left_page.to_be_bytes());
                 index += <span class="number">8</span>;
-                index = left.to_bytes(output, index);
-                index = right.to_bytes(output, index);
+                output[index..(index + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>right_page.to_be_bytes());
+
+                page.get_page_number()
             }
         }
-
-        index
     }
 
     <span class="doccomment">/// Returns the maximum key in the tree
@@ -595,14 +573,6 @@
         );
         <span class="kw">let </span>right = Leaf((<span class="string">b&quot;hello3&quot;</span>.to_vec(), <span class="string">b&quot;world3&quot;</span>.to_vec()), <span class="prelude-val">None</span>);
         Internal(Box::new(left), <span class="string">b&quot;hello2&quot;</span>.to_vec(), Box::new(right))
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>serialize() {
-        <span class="kw">let </span>internal = gen_tree();
-        <span class="kw">let </span>size = internal.recursive_size();
-        <span class="kw">let </span><span class="kw-2">mut </span>buffer = <span class="macro">vec!</span>[<span class="number">0u8</span>; size];
-        internal.to_bytes(<span class="kw-2">&amp;mut </span>buffer, <span class="number">0</span>);
     }
 
     <span class="attr">#[test]
