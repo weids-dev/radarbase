@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["ALLOCATOR_STATE_OFFSET","DATA_LEN_OFFSET","DATA_OFFSET","DB_METADATA_SIZE","ENTRY_DELETED","MAGICNUMBER","ROOT_PAGE_OFFSET"],"enum":["AccessGuard"],"struct":["EntryAccessor","EntryMutator","Storage"]};
+window.SIDEBAR_ITEMS = {"constant":["ALLOCATOR_STATE_OFFSET","DB_METADATA_SIZE","MAGICNUMBER","ROOT_PAGE_OFFSET"],"enum":["AccessGuard"],"struct":["Storage"]};

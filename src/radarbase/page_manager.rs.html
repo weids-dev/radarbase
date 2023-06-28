@@ -107,38 +107,11 @@
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Error;
 <span class="kw">use </span>memmap2::MmapMut;
 <span class="kw">use </span>std::cell::{Ref, RefCell, RefMut};
 <span class="kw">use </span>std::convert::TryInto;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>ALL_MEMORY_HACK: u64 = u64::MAX;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>DB_METADATA_PAGE: u64 = <span class="number">0</span>;
 
 <span class="kw">pub struct </span>Page&lt;<span class="lifetime">&#39;a</span>&gt; {
@@ -151,8 +124,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.mem
     }
 
-    <span class="attr">#[allow(dead_code)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_page_number(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_page_number(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
         <span class="self">self</span>.page_number
     }
 }
@@ -211,50 +183,26 @@
 
     <span class="doccomment">/// Returns a reference to the page with the specified number.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_page(<span class="kw-2">&amp;</span><span class="self">self</span>, page_number: u64) -&gt; Page {
-        <span class="comment">// TODO: remove this
-        </span><span class="kw">if </span>page_number == ALL_MEMORY_HACK {
-            <span class="comment">// return all memory (current linear memory, temp sol)
-            </span>Page {
-                mem: Ref::map(<span class="self">self</span>.mmap.borrow(), |m| <span class="kw-2">&amp;</span>m[..]),
-                page_number,
-            }
-        } <span class="kw">else </span>{
-            <span class="macro">assert!</span>(page_number &lt; <span class="kw-2">*</span><span class="self">self</span>.next_free_page.borrow());
-            <span class="kw">let </span>start = page_number <span class="kw">as </span>usize * page_size::get();
-            <span class="kw">let </span>end = start + page_size::get();
+        <span class="macro">assert!</span>(page_number &lt; <span class="kw-2">*</span><span class="self">self</span>.next_free_page.borrow());
+        <span class="kw">let </span>start = page_number <span class="kw">as </span>usize * page_size::get();
+        <span class="kw">let </span>end = start + page_size::get();
 
-            Page {
-                mem: Ref::map(<span class="self">self</span>.mmap.borrow(), |m| <span class="kw-2">&amp;</span>m[start..end]),
-                page_number,
-            }
+        Page {
+            mem: Ref::map(<span class="self">self</span>.mmap.borrow(), |m| <span class="kw-2">&amp;</span>m[start..end]),
+            page_number,
         }
     }
 
     <span class="doccomment">/// Returns a mutable reference to the page with the specified number.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_page_mut(<span class="kw-2">&amp;</span><span class="self">self</span>, page_number: u64) -&gt; PageMut {
-        <span class="comment">// TODO: remove this
-        </span><span class="kw">if </span>page_number == ALL_MEMORY_HACK {
-            <span class="comment">// return all memory (for debugging)
-            </span>PageMut {
-                mem: RefMut::map(<span class="self">self</span>.mmap.borrow_mut(), |m| <span class="kw-2">&amp;mut </span>m[..]),
-                page_number,
-            }
-        } <span class="kw">else </span>{
-            <span class="macro">assert!</span>(page_number &lt; <span class="kw-2">*</span><span class="self">self</span>.next_free_page.borrow());
-            <span class="kw">let </span>start = page_number <span class="kw">as </span>usize * page_size::get();
-            <span class="kw">let </span>end = start + page_size::get();
+        <span class="macro">assert!</span>(page_number &lt; <span class="kw-2">*</span><span class="self">self</span>.next_free_page.borrow());
+        <span class="kw">let </span>start = page_number <span class="kw">as </span>usize * page_size::get();
+        <span class="kw">let </span>end = start + page_size::get();
 
-            PageMut {
-                mem: RefMut::map(<span class="self">self</span>.mmap.borrow_mut(), |m| <span class="kw-2">&amp;mut </span>m[start..end]),
-                page_number,
-            }
+        PageMut {
+            mem: RefMut::map(<span class="self">self</span>.mmap.borrow_mut(), |m| <span class="kw-2">&amp;mut </span>m[start..end]),
+            page_number,
         }
-    }
-
-    <span class="doccomment">/// Set the free page to the next page after the given offset. (which is the end of DATA_OFFSET + data_len)
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>hack_set_free_page_to_next_after(<span class="kw-2">&amp;</span><span class="self">self</span>, offset: u64) {
-        <span class="kw-2">*</span><span class="self">self</span>.next_free_page.borrow_mut() =
-            (offset + page_size::get() <span class="kw">as </span>u64 - <span class="number">1</span>) / page_size::get() <span class="kw">as </span>u64;
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>allocate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PageMut {

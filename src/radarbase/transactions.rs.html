@@ -83,6 +83,7 @@
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use </span><span class="kw">crate</span>::storage::{AccessGuard, Storage};
 <span class="kw">use </span>std::collections::{HashMap, HashSet};
@@ -108,9 +109,10 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub fn </span>commit(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+    <span class="doccomment">/// change the in-memory (mmap) data structure
+    </span><span class="kw">pub fn </span>commit(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
         <span class="kw">for </span>(key, value) <span class="kw">in </span><span class="self">self</span>.added.iter() {
-            <span class="self">self</span>.storage.append(key, value)<span class="question-mark">?</span>;
+            <span class="self">self</span>.storage.insert(key, value)<span class="question-mark">?</span>;
         }
         <span class="kw">for </span>key <span class="kw">in </span><span class="self">self</span>.removed.iter() {
             <span class="self">self</span>.storage.remove(key)<span class="question-mark">?</span>;

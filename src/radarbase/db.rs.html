@@ -65,7 +65,7 @@
             .open(path)<span class="question-mark">?</span>;
 
         <span class="comment">// TODO: make this configurable
-        </span><span class="kw">let </span><span class="kw-2">mut </span>db_size = <span class="number">4 </span>* <span class="number">1024 </span>* <span class="number">1024 </span>* <span class="number">1024</span>;
+        </span><span class="kw">let </span><span class="kw-2">mut </span>db_size = <span class="number">16 </span>* <span class="number">1024 </span>* <span class="number">1024 </span>* <span class="number">1024</span>;
         <span class="comment">// Ensure that db_size is a multiple of page size, which is required by mmap
         // page_size::get() to retrieve the memory page size of the current system.
         </span>db_size -= db_size % page_size::get();
