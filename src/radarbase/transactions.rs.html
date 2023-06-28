@@ -75,6 +75,14 @@
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use </span><span class="kw">crate</span>::storage::{AccessGuard, Storage};
 <span class="kw">use </span>std::collections::{HashMap, HashSet};
@@ -150,6 +158,14 @@
 
     <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&lt;<span class="lifetime">&#39;mmap</span>&gt;&gt;, Error&gt; {
         <span class="self">self</span>.storage.get(key)
+    }
+
+    <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
+        <span class="self">self</span>.storage.len()
+    }
+
+    <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
+        <span class="self">self</span>.storage.len().map(|x| x == <span class="number">0</span>)
     }
 }
 </code></pre></div></section></main></body></html>

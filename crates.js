@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["libc","memmap2","radarbase"];
+window.ALL_CRATES = ["libc","memmap2","page_size","radarbase"];
