@@ -24,7 +24,7 @@ impl Database {
             .open(path)?;
 
         // TODO: make this configurable
-        let mut db_size = 4 * 1024 * 1024 * 1024;
+        let mut db_size = 16 * 1024 * 1024 * 1024;
         // Ensure that db_size is a multiple of page size, which is required by mmap
         // page_size::get() to retrieve the memory page size of the current system.
         db_size -= db_size % page_size::get();
