@@ -84,6 +84,8 @@
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use </span><span class="kw">crate</span>::storage::{AccessGuard, Storage};
 <span class="kw">use </span>std::collections::{HashMap, HashSet};
@@ -135,7 +137,7 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = <span class="self">self</span>.added.get(key) {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(AccessGuard::Local(value)));
         }
-        <span class="self">self</span>.storage.get(key)
+        <span class="self">self</span>.storage.get(key, <span class="self">self</span>.storage.get_root_page_number())
     }
 
     <span class="kw">pub fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
@@ -151,23 +153,25 @@
 
 <span class="kw">pub struct </span>ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
     storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage,
+    root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;mmap</span>&gt; ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage) -&gt; ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
-        ReadOnlyTransaction { storage }
+        <span class="kw">let </span>root_page = storage.get_root_page_number(); <span class="comment">// Read isolation
+        </span>ReadOnlyTransaction { storage, root_page }
     }
 
     <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&lt;<span class="lifetime">&#39;mmap</span>&gt;&gt;, Error&gt; {
-        <span class="self">self</span>.storage.get(key)
+        <span class="self">self</span>.storage.get(key, <span class="self">self</span>.root_page)
     }
 
     <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="self">self</span>.storage.len()
+        <span class="self">self</span>.storage.len(<span class="self">self</span>.root_page)
     }
 
     <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
-        <span class="self">self</span>.storage.len().map(|x| x == <span class="number">0</span>)
+        <span class="self">self</span>.storage.len(<span class="self">self</span>.root_page).map(|x| x == <span class="number">0</span>)
     }
 }
 </code></pre></div></section></main></body></html>

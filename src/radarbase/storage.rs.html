@@ -127,6 +127,14 @@
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{lookup_in_raw, tree_delete, tree_insert, tree_size, BinarytreeBuilder};
 <span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, DB_METADATA_PAGE};
 <span class="kw">use </span><span class="kw">crate</span>::Error;
@@ -178,15 +186,15 @@
     }
 
     <span class="doccomment">/// Get the number of entries
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(root) = <span class="self">self</span>.get_root_page() {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>, root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(root) = root_page.map(|p| <span class="self">self</span>.mem.get_page(p)) {
             <span class="prelude-val">Ok</span>(tree_size(root, <span class="kw-2">&amp;</span><span class="self">self</span>.mem))
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(<span class="number">0</span>)
         }
     }
 
-    <span class="kw">fn </span>get_root_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Page&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_root_page_number(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
         <span class="kw">let </span>metapage = <span class="self">self</span>.mem.get_page(DB_METADATA_PAGE);
         <span class="kw">let </span>mmap = metapage.memory();
         <span class="kw">let </span>root_page_number = u64::from_be_bytes(
@@ -197,8 +205,12 @@
         <span class="kw">if </span>root_page_number == <span class="number">0 </span>{
             <span class="prelude-val">None
         </span>} <span class="kw">else </span>{
-            <span class="prelude-val">Some</span>(<span class="self">self</span>.mem.get_page(root_page_number))
+            <span class="prelude-val">Some</span>(root_page_number)
         }
+    }
+
+    <span class="kw">fn </span>get_root_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Page&gt; {
+        <span class="self">self</span>.get_root_page_number().map(|p| <span class="self">self</span>.mem.get_page(p))
     }
 
     <span class="kw">fn </span>set_root_page(<span class="kw-2">&amp;</span><span class="self">self</span>, root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;) {
@@ -221,8 +233,12 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&gt;, Error&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(root_page) = <span class="self">self</span>.get_root_page() {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        key: <span class="kw-2">&amp;</span>[u8],
+        root_page_number: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&gt;, Error&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(root_page) = root_page_number.map(|p| <span class="self">self</span>.mem.get_page(p)) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>((page, offset, len)) = lookup_in_raw(root_page, key, <span class="kw-2">&amp;</span><span class="self">self</span>.mem) {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(AccessGuard::PageBacked(page, offset, len)));
             }

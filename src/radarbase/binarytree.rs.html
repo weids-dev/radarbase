@@ -610,6 +610,23 @@
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::Node::{Internal, Leaf};
 <span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, PageMut};
 <span class="kw">use </span>std::cell::Cell;
@@ -862,7 +879,8 @@
                 }
                 <span class="comment">// Found, create a new leaf with the other key
                 </span><span class="kw">let </span>new_leaf = <span class="kw">if </span>key == accessor.lesser().key() {
-                    Leaf((greater.key().to_vec(), greater.value().to_vec()), <span class="prelude-val">None</span>)
+                    <span class="comment">// # TODO: That will make a leaf node with no value in there
+                    </span>Leaf((greater.key().to_vec(), greater.value().to_vec()), <span class="prelude-val">None</span>)
                 } <span class="kw">else </span>{
                     Leaf(
                         (
@@ -918,7 +936,11 @@
                 <span class="kw">return </span><span class="prelude-val">Some</span>(original_page_number);
             }
 
-            <span class="kw">let </span><span class="kw-2">mut </span>page = manager.allocate();
+            <span class="comment">// MVCC read isolation: (snapshot)
+            // If we remove something in the sub-tree, we will allocate spaces
+            // for all the affected nodes, actually, which means that the root node
+            // will also be a new allocated page, which make us achieve read isolation
+            </span><span class="kw">let </span><span class="kw-2">mut </span>page = manager.allocate();
             <span class="kw">let </span><span class="kw-2">mut </span>builder = InternalBuilder::new(<span class="kw-2">&amp;mut </span>page);
             builder.write_key(<span class="kw-2">&amp;</span>our_key);
             builder.write_lte_page(left_page);
@@ -983,16 +1005,23 @@
     }
 }
 
-<span class="doccomment">/// Returns a tuple of the form `(Page&lt;&#39;a&gt;, usize, usize)` representing the value for a queried key within a binary tree if present.
+<span class="doccomment">/// Returns a tuple of the form `(Page&lt;&#39;a&gt;, usize, usize)` representing the value for
+/// a queried key within a binary tree if present.
 ///
-/// The binary tree is composed of Nodes serialized into `Page`s and maintained by a `PageManager`. This function attempts to locate a key within this tree and if found, returns a tuple where:
+/// The binary tree is composed of Nodes serialized into `Page`s and maintained by a `PageManager`.
+/// This function attempts to locate a key within this tree and if found, returns a tuple where:
 /// - The first element is the `Page` in which the value is located
 /// - The second element is the offset within that page where the value begins
 /// - The third element is the length of the value
 ///
-/// Given a key, the function begins at the root of the tree and traverses to the left or right child depending on whether the key is less or greater than the current node&#39;s key. The process is recursive and continues until the key is either found or it is determined that the key does not exist in the tree.
+/// Given a key, the function begins at the root of the tree and traverses to the left or right
+/// child depending on whether the key is less or greater than the current node&#39;s key. The process
+/// is recursive and continues until the key is either found or it is determined that the key does not exist in the tree.
 ///
-/// This function might not be space efficient since it allocates a whole page for each node, leading to a waste of space when nodes don&#39;t fully occupy their corresponding pages. Future optimizations could involve storing multiple nodes within a single page, or having variable size pages to better match the size of nodes.
+/// This function might not be space efficient since it allocates a whole page for each node,
+/// leading to a waste of space when nodes don&#39;t fully occupy their corresponding pages.
+/// Future optimizations could involve storing multiple nodes within a single page, or having variable
+/// size pages to better match the size of nodes.
 ///
 /// # Arguments
 ///
@@ -1002,11 +1031,14 @@
 ///
 /// # Returns
 ///
-/// An `Option` that contains a tuple `(Page&lt;&#39;a&gt;, usize, usize)`. If the key is found, it returns `Some`, with the `Page` containing the value, the offset of the value within the page, and the length of the value. If the key is not found in the tree, it returns `None`.
+/// An `Option` that contains a tuple `(Page&lt;&#39;a&gt;, usize, usize)`. If the key is found, it returns `Some`,
+/// with the `Page` containing the value, the offset of the value within the page, and the length of the value.
+/// If the key is not found in the tree, it returns `None`.
 ///
 /// # Panics
 ///
-/// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a recognized node type (1 for leaf node or 2 for internal node).
+/// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a
+/// recognized node type (1 for leaf node or 2 for internal node).
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_in_raw&lt;<span class="lifetime">&#39;a</span>&gt;(
     page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
     query: <span class="kw-2">&amp;</span>[u8],
@@ -1057,7 +1089,9 @@
 }
 
 <span class="kw">impl </span>Node {
-    <span class="comment">// Returns the page number that the node was written to
+    <span class="doccomment">/// Returns the page number that the node was written to
+    /// To support MVCC read isolation, we need to re-allocate a page in
+    /// disk for every chanegs.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, page_manager: <span class="kw-2">&amp;</span>PageManager) -&gt; u64 {
         <span class="kw">match </span><span class="self">self </span>{
             Node::Leaf(left_val, right_val) =&gt; {
