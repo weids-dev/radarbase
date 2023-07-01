@@ -49,7 +49,7 @@ impl<'mmap> WriteTransaction<'mmap> {
         if let Some(value) = self.added.get(key) {
             return Ok(Some(AccessGuard::Local(value)));
         }
-        self.storage.get(key)
+        self.storage.get(key, self.storage.get_root_page_number())
     }
 
     pub fn remove(&mut self, key: &[u8]) -> Result<(), Error> {
@@ -65,22 +65,24 @@ impl<'mmap> WriteTransaction<'mmap> {
 
 pub struct ReadOnlyTransaction<'mmap> {
     storage: &'mmap Storage,
+    root_page: Option<u64>,
 }
 
 impl<'mmap> ReadOnlyTransaction<'mmap> {
     pub(crate) fn new(storage: &'mmap Storage) -> ReadOnlyTransaction<'mmap> {
-        ReadOnlyTransaction { storage }
+        let root_page = storage.get_root_page_number(); // Read isolation
+        ReadOnlyTransaction { storage, root_page }
     }
 
     pub fn get(&self, key: &[u8]) -> Result<Option<AccessGuard<'mmap>>, Error> {
-        self.storage.get(key)
+        self.storage.get(key, self.root_page)
     }
 
     pub fn len(&self) -> Result<usize, Error> {
-        self.storage.len()
+        self.storage.len(self.root_page)
     }
 
     pub fn is_empty(&self) -> Result<bool, Error> {
-        self.storage.len().map(|x| x == 0)
+        self.storage.len(self.root_page).map(|x| x == 0)
     }
 }

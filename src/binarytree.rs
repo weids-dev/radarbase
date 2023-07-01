@@ -250,6 +250,7 @@ pub(crate) fn tree_delete<'a>(page: Page<'a>, key: &[u8], manager: &'a PageManag
                 }
                 // Found, create a new leaf with the other key
                 let new_leaf = if key == accessor.lesser().key() {
+                    // # TODO: That will make a leaf node with no value in there
                     Leaf((greater.key().to_vec(), greater.value().to_vec()), None)
                 } else {
                     Leaf(
@@ -306,6 +307,10 @@ pub(crate) fn tree_delete<'a>(page: Page<'a>, key: &[u8], manager: &'a PageManag
                 return Some(original_page_number);
             }
 
+            // MVCC read isolation: (snapshot)
+            // If we remove something in the sub-tree, we will allocate spaces
+            // for all the affected nodes, actually, which means that the root node
+            // will also be a new allocated page, which make us achieve read isolation
             let mut page = manager.allocate();
             let mut builder = InternalBuilder::new(&mut page);
             builder.write_key(&our_key);
@@ -371,16 +376,23 @@ pub(crate) fn tree_insert<'a>(
     }
 }
 
-/// Returns a tuple of the form `(Page<'a>, usize, usize)` representing the value for a queried key within a binary tree if present.
+/// Returns a tuple of the form `(Page<'a>, usize, usize)` representing the value for
+/// a queried key within a binary tree if present.
 ///
-/// The binary tree is composed of Nodes serialized into `Page`s and maintained by a `PageManager`. This function attempts to locate a key within this tree and if found, returns a tuple where:
+/// The binary tree is composed of Nodes serialized into `Page`s and maintained by a `PageManager`.
+/// This function attempts to locate a key within this tree and if found, returns a tuple where:
 /// - The first element is the `Page` in which the value is located
 /// - The second element is the offset within that page where the value begins
 /// - The third element is the length of the value
 ///
-/// Given a key, the function begins at the root of the tree and traverses to the left or right child depending on whether the key is less or greater than the current node's key. The process is recursive and continues until the key is either found or it is determined that the key does not exist in the tree.
+/// Given a key, the function begins at the root of the tree and traverses to the left or right
+/// child depending on whether the key is less or greater than the current node's key. The process
+/// is recursive and continues until the key is either found or it is determined that the key does not exist in the tree.
 ///
-/// This function might not be space efficient since it allocates a whole page for each node, leading to a waste of space when nodes don't fully occupy their corresponding pages. Future optimizations could involve storing multiple nodes within a single page, or having variable size pages to better match the size of nodes.
+/// This function might not be space efficient since it allocates a whole page for each node,
+/// leading to a waste of space when nodes don't fully occupy their corresponding pages.
+/// Future optimizations could involve storing multiple nodes within a single page, or having variable
+/// size pages to better match the size of nodes.
 ///
 /// # Arguments
 ///
@@ -390,11 +402,14 @@ pub(crate) fn tree_insert<'a>(
 ///
 /// # Returns
 ///
-/// An `Option` that contains a tuple `(Page<'a>, usize, usize)`. If the key is found, it returns `Some`, with the `Page` containing the value, the offset of the value within the page, and the length of the value. If the key is not found in the tree, it returns `None`.
+/// An `Option` that contains a tuple `(Page<'a>, usize, usize)`. If the key is found, it returns `Some`,
+/// with the `Page` containing the value, the offset of the value within the page, and the length of the value.
+/// If the key is not found in the tree, it returns `None`.
 ///
 /// # Panics
 ///
-/// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a recognized node type (1 for leaf node or 2 for internal node).
+/// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a
+/// recognized node type (1 for leaf node or 2 for internal node).
 pub(crate) fn lookup_in_raw<'a>(
     page: Page<'a>,
     query: &[u8],
@@ -445,7 +460,9 @@ pub(crate) enum Node {
 }
 
 impl Node {
-    // Returns the page number that the node was written to
+    /// Returns the page number that the node was written to
+    /// To support MVCC read isolation, we need to re-allocate a page in
+    /// disk for every chanegs.
     pub(crate) fn to_bytes(&self, page_manager: &PageManager) -> u64 {
         match self {
             Node::Leaf(left_val, right_val) => {

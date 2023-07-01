@@ -8,7 +8,7 @@ use rand::Rng;
 use std::time::SystemTime;
 
 const ITERATIONS: usize = 3;
-const ELEMENTS: usize = 100_000;
+const ELEMENTS: usize = 10_000;
 
 /// Returns pairs of key, value
 fn gen_data(count: usize, key_size: usize, value_size: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
