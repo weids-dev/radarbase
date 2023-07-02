@@ -135,7 +135,12 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{lookup_in_raw, tree_delete, tree_insert, tree_size, BinarytreeBuilder};
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{
+    lookup_in_raw, tree_delete, tree_insert, BinarytreeBuilder, BinarytreeRangeIter,
+};
 <span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, DB_METADATA_PAGE};
 <span class="kw">use </span><span class="kw">crate</span>::Error;
 <span class="kw">use </span>memmap2::MmapMut;
@@ -187,11 +192,12 @@
 
     <span class="doccomment">/// Get the number of entries
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>, root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(root) = root_page.map(|p| <span class="self">self</span>.mem.get_page(p)) {
-            <span class="prelude-val">Ok</span>(tree_size(root, <span class="kw-2">&amp;</span><span class="self">self</span>.mem))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="number">0</span>)
+        <span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(root_page.map(|p| <span class="self">self</span>.mem.get_page(p)), <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
+        <span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
+        <span class="kw">while </span>iter.next().is_some() {
+            count += <span class="number">1</span>;
         }
+        <span class="prelude-val">Ok</span>(count)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_root_page_number(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
