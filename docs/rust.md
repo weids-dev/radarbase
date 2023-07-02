@@ -7,3 +7,82 @@ The `RefCell` allowing rust code that potentially violates the borrowing rules t
 This ensures that Rust's guarantees of memory safety are still upheld, even when compile-time checks are bypassed.
 
 It should be used sparingly, and if you find yourself using it frequently, it could indicate a need to rethink your design.
+
+## Lifetimes
+
+### Single Lifetime
+```rust
+struct Dog<'a> {
+    name: &'a str,
+}
+
+fn main() {
+    let name = String::from("Fido");
+    let fido = Dog { name: &name };
+
+    println!("Dog's name is {}", fido.name);
+}
+```
+Here, we define a `Dog` struct with a field `name` that is a reference to a `string (&str)`. We use the lifetime specifier `'a`(or any other ids by your convention, The important thing is that the same lifetime identifier must be used consistently within the same context to refer to the same lifetime.) to tell Rust that any Dog instance cannot outlive the string it references.
+
+Here's a modified version of the previous example that will **NOT** compile:
+```rust
+struct Dog<'a> {
+    name: &'a str,
+}
+
+fn main() {
+    let fido;
+    {
+        let name = String::from("Fido");
+        fido = Dog { name: &name };
+    } // Here `name` goes out of scope and is dropped.
+
+    println!("Dog's name is {}", fido.name); // This line will cause a compile error.
+}
+```
+In this example, name is dropped at the end of the inner scope, but fido is still trying to use it afterwards. This code will result in a compile error, because Rust's borrow checker enforces that fido cannot outlive the data it's referencing.
+
+### Multiple Lifetime
+
+```rust
+struct Dog<'a> {
+    name: &'a str,
+}
+
+struct DogHelper<'a: 'b, 'b> {
+    dog: &'b Dog<'a>,
+}
+
+impl<'a: 'b, 'b> DogHelper<'a, 'b> {
+    fn bark(&self) {
+        println!("{} says: Woof!", self.dog.name);
+    }
+
+    fn rename(&self, new_name: &'a str) -> Dog<'a> {
+        Dog { name: new_name }
+    }
+}
+
+fn main() {
+    let fido_name = String::from("Fido");
+    let fido = Dog { name: &fido_name };
+
+    let helper = DogHelper { dog: &fido };
+    
+    helper.bark(); // Prints: "Fido says: Woof!"
+
+    let renamed_dog = helper.rename("Spot");
+    println!("Renamed dog's name is {}", renamed_dog.name); // Prints: "Renamed dog's name is Spot"
+}
+```
+
+* `Dog` has a lifetime `'a`, because it contains a reference to a string.
+* `DogHelper` has two lifetimes, `'a` and `'b`. `'a` is the lifetime of the name within a Dog, and `'b` is the lifetime of the `Dog` reference within `DogHelper`.
+* In `DogHelper`, **`'a: 'b` means that `'a` outlives `'b`. This is required because we're returning a `Dog<'a>` in `rename()`, which requires that the `new_name` live at least as long as the `Dog` we're creating**.
+
+This is a simple illustration of using multiple lifetimes in a single scope. Here `'a` is the lifetime of string data (the name of the dog), and `'b` is the lifetime of the `Dog` instance itself. This allows you to ensure the borrowed data (`dog.name` and `new_name`) remains valid for the duration of the `DogHelper` and the new `Dog` created in `rename()`.
+
+In general, you only need to worry about **lifetimes** when you're dealing with **references**. If your data structures own their data (instead of borrowing it), then you don't need to specify lifetimes. For example, if `Dog` owned its `name` (like `name: String` instead of `name: &str`), then you wouldn't need to specify a lifetime for `Dog`.
+
+In summary, you don't always need to annotate lifetimes in Rust, but you do need to do so when defining structures that borrow data. It's a bit of extra work, but it's what allows Rust to guarantee memory safety at compile time.

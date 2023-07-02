@@ -1,4 +1,6 @@
-use crate::binarytree::{lookup_in_raw, tree_delete, tree_insert, tree_size, BinarytreeBuilder};
+use crate::binarytree::{
+    lookup_in_raw, tree_delete, tree_insert, BinarytreeBuilder, BinarytreeRangeIter,
+};
 use crate::page_manager::{Page, PageManager, DB_METADATA_PAGE};
 use crate::Error;
 use memmap2::MmapMut;
@@ -50,11 +52,12 @@ impl Storage {
 
     /// Get the number of entries
     pub(crate) fn len(&self, root_page: Option<u64>) -> Result<usize, Error> {
-        if let Some(root) = root_page.map(|p| self.mem.get_page(p)) {
-            Ok(tree_size(root, &self.mem))
-        } else {
-            Ok(0)
+        let mut iter = BinarytreeRangeIter::new(root_page.map(|p| self.mem.get_page(p)), &self.mem);
+        let mut count = 0;
+        while iter.next().is_some() {
+            count += 1;
         }
+        Ok(count)
     }
 
     pub(crate) fn get_root_page_number(&self) -> Option<u64> {
