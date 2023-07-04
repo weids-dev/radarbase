@@ -278,14 +278,14 @@
     }
 
     <span class="kw">fn </span>set_root_page(<span class="kw-2">&amp;</span><span class="self">self</span>, root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;) {
-        <span class="kw">let </span><span class="kw-2">mut </span>meta = <span class="self">self</span>.mem.get_page_mut(DB_METADATA_PAGE);
+        <span class="kw">let </span><span class="kw-2">mut </span>meta = <span class="self">self</span>.mem.get_metapage_mut();
         <span class="kw">let </span>mmap = meta.memory_mut();
         mmap[ROOT_PAGE_OFFSET..(ROOT_PAGE_OFFSET + <span class="number">8</span>)]
             .copy_from_slice(<span class="kw-2">&amp;</span>root_page.unwrap_or(<span class="number">0</span>).to_be_bytes());
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fsync(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>meta = <span class="self">self</span>.mem.get_page_mut(DB_METADATA_PAGE);
+        <span class="kw">let </span><span class="kw-2">mut </span>meta = <span class="self">self</span>.mem.get_metapage_mut();
         <span class="kw">let </span>mmap = meta.memory_mut();
 
         <span class="self">self</span>.mem.store_state(

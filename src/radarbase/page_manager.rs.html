@@ -107,6 +107,10 @@
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Error;
 <span class="kw">use </span>memmap2::MmapMut;
 <span class="kw">use </span>std::cell::{Ref, RefCell, RefMut};
@@ -193,8 +197,12 @@
         }
     }
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_metapage_mut(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PageMut {
+        <span class="self">self</span>.get_page_mut(DB_METADATA_PAGE)
+    }
+
     <span class="doccomment">/// Returns a mutable reference to the page with the specified number.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_page_mut(<span class="kw-2">&amp;</span><span class="self">self</span>, page_number: u64) -&gt; PageMut {
+    </span><span class="kw">fn </span>get_page_mut(<span class="kw-2">&amp;</span><span class="self">self</span>, page_number: u64) -&gt; PageMut {
         <span class="macro">assert!</span>(page_number &lt; <span class="kw-2">*</span><span class="self">self</span>.next_free_page.borrow());
         <span class="kw">let </span>start = page_number <span class="kw">as </span>usize * page_size::get();
         <span class="kw">let </span>end = start + page_size::get();
