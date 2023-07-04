@@ -150,7 +150,7 @@ impl<'a> EntryAccessor<'a> {
         u64::from_be_bytes(self.raw[0..8].try_into().unwrap()) as usize
     }
 
-    fn key(&self) -> &'a [u8] {
+    pub fn key(&self) -> &'a [u8] {
         &self.raw[8..(8 + self.key_len())]
     }
 
@@ -167,7 +167,7 @@ impl<'a> EntryAccessor<'a> {
         ) as usize
     }
 
-    fn value(&self) -> &'a [u8] {
+    pub fn value(&self) -> &'a [u8] {
         &self.raw[self.value_offset()..(self.value_offset() + self.value_len())]
     }
 

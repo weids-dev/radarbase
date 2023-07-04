@@ -14,6 +14,43 @@ mmap(): Random read 100000 items in 15ms
 
 **Timeline (newest to oldest)**
 
+* **[07-04-2023]
+```
+     Running benches/benchmark.rs (target/release/deps/benchmark-0322d0ccc42aabb8)
+lmdb-rkv: Loaded 100000 items in 2535ms
+lmdb-rkv: Random read 100000 items in 137ms
+lmdb-rkv: Random read 100000 items in 90ms
+lmdb-rkv: Random read 100000 items in 92ms
+radarbase: Loaded 100000 items in 2013ms
+radarbase: Random read 100000 items in 217ms
+radarbase: Random read 100000 items in 230ms
+radarbase: Random read 100000 items in 233ms
+sled: Loaded 100000 items in 3718ms
+sled: Random read 100000 items in 258ms
+sled: Random read 100000 items in 212ms
+sled: Random read 100000 items in 213ms
+     Running benches/common.rs (target/release/deps/common-ba49b4c18cf58a44)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches/syscall_benchmark.rs (target/release/deps/syscall_benchmark-114836c52d12a9a6)
+lmdb-zero: Loaded 100000 items in 2604ms
+lmdb-zero: Random read 100000 items in 119ms
+lmdb-zero: Random read 100000 items in 96ms
+lmdb-zero: Random read 100000 items in 96ms
+read()/write(): Loaded 100000 items in 1321ms
+read()/write(): Random read 100000 items in 338ms
+read()/write(): Random read 100000 items in 338ms
+read()/write(): Random read 100000 items in 336ms
+mmap(): Loaded 100000 items in 757ms
+mmap(): Random read 100000 items in 43ms
+mmap(): Random read 100000 items in 25ms
+mmap(): Random read 100000 items in 25ms
+
+```
+* **[07-01-2023]
 * **[06-28-2023](https://github.com/weids-dev/radarbase/commit/fa52bd2629503123fd3634e62bbc98dd239de250) Binary Tree with node-page Implementation**
 ```
 radarbase: Loaded 100000 items in 1503ms

@@ -4,6 +4,7 @@ use crate::binarytree::{
 use crate::page_manager::{Page, PageManager, DB_METADATA_PAGE};
 use crate::Error;
 use memmap2::MmapMut;
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 const MAGICNUMBER: [u8; 4] = [b'r', b'a', b'd', b'b'];
@@ -40,13 +41,41 @@ impl Storage {
 
     pub(crate) fn insert(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
         let new_root = if let Some(root) = self.get_root_page() {
+            // If there is already a root page, insert into the existing tree
+            // quite inefficiently, only if the tree is contain less node
             tree_insert(root, key, value, &self.mem)
         } else {
+            // If there is no root page, create a new tree
+            // (only happends when first inserting)
             let mut builder = BinarytreeBuilder::new();
             builder.add(key, value);
             builder.build().to_bytes(&self.mem)
         };
         self.set_root_page(Some(new_root));
+        Ok(())
+    }
+
+    pub(crate) fn bulk_insert(&self, entries: HashMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {
+        // Assume that rewriting half the tree is about the same cost as building a completely new one
+        if entries.len() <= self.len(self.get_root_page_number())? / 2 {
+            for (key, value) in entries.iter() {
+                self.insert(key, value)?;
+            }
+        } else {
+            // rebuild the tree
+            let mut builder = BinarytreeBuilder::new();
+            for (key, value) in entries {
+                builder.add(&key, &value);
+            }
+            // Copy all the existing entries
+            let mut iter = BinarytreeRangeIter::new(self.get_root_page(), &self.mem);
+            while let Some(x) = iter.next() {
+                builder.add(x.key(), x.value());
+            }
+
+            let new_root = builder.build().to_bytes(&self.mem);
+            self.set_root_page(Some(new_root));
+        }
         Ok(())
     }
 

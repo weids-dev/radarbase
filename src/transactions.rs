@@ -25,9 +25,7 @@ impl<'mmap> WriteTransaction<'mmap> {
 
     /// change the in-memory (mmap) data structure
     pub fn commit(self) -> Result<(), Error> {
-        for (key, value) in self.added.iter() {
-            self.storage.insert(key, value)?;
-        }
+        self.storage.bulk_insert(self.added)?;
         for key in self.removed.iter() {
             self.storage.remove(key)?;
         }
