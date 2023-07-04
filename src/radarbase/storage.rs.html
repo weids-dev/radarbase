@@ -138,12 +138,42 @@
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{
     lookup_in_raw, tree_delete, tree_insert, BinarytreeBuilder, BinarytreeRangeIter,
 };
 <span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, DB_METADATA_PAGE};
 <span class="kw">use </span><span class="kw">crate</span>::Error;
 <span class="kw">use </span>memmap2::MmapMut;
+<span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::convert::TryInto;
 
 <span class="kw">const </span>MAGICNUMBER: [u8; <span class="number">4</span>] = [<span class="string">b&#39;r&#39;</span>, <span class="string">b&#39;a&#39;</span>, <span class="string">b&#39;d&#39;</span>, <span class="string">b&#39;b&#39;</span>];
@@ -180,13 +210,41 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], value: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
         <span class="kw">let </span>new_root = <span class="kw">if let </span><span class="prelude-val">Some</span>(root) = <span class="self">self</span>.get_root_page() {
-            tree_insert(root, key, value, <span class="kw-2">&amp;</span><span class="self">self</span>.mem)
+            <span class="comment">// If there is already a root page, insert into the existing tree
+            // quite inefficiently, only if the tree is contain less node
+            </span>tree_insert(root, key, value, <span class="kw-2">&amp;</span><span class="self">self</span>.mem)
         } <span class="kw">else </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
+            <span class="comment">// If there is no root page, create a new tree
+            // (only happends when first inserting)
+            </span><span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
             builder.add(key, value);
             builder.build().to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem)
         };
         <span class="self">self</span>.set_root_page(<span class="prelude-val">Some</span>(new_root));
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bulk_insert(<span class="kw-2">&amp;</span><span class="self">self</span>, entries: HashMap&lt;Vec&lt;u8&gt;, Vec&lt;u8&gt;&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+        <span class="comment">// Assume that rewriting half the tree is about the same cost as building a completely new one
+        </span><span class="kw">if </span>entries.len() &lt;= <span class="self">self</span>.len(<span class="self">self</span>.get_root_page_number())<span class="question-mark">? </span>/ <span class="number">2 </span>{
+            <span class="kw">for </span>(key, value) <span class="kw">in </span>entries.iter() {
+                <span class="self">self</span>.insert(key, value)<span class="question-mark">?</span>;
+            }
+        } <span class="kw">else </span>{
+            <span class="comment">// rebuild the tree
+            </span><span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
+            <span class="kw">for </span>(key, value) <span class="kw">in </span>entries {
+                builder.add(<span class="kw-2">&amp;</span>key, <span class="kw-2">&amp;</span>value);
+            }
+            <span class="comment">// Copy all the existing entries
+            </span><span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(<span class="self">self</span>.get_root_page(), <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
+            <span class="kw">while let </span><span class="prelude-val">Some</span>(x) = iter.next() {
+                builder.add(x.key(), x.value());
+            }
+
+            <span class="kw">let </span>new_root = builder.build().to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem);
+            <span class="self">self</span>.set_root_page(<span class="prelude-val">Some</span>(new_root));
+        }
         <span class="prelude-val">Ok</span>(())
     }
 

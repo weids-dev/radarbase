@@ -889,7 +889,7 @@
         u64::from_be_bytes(<span class="self">self</span>.raw[<span class="number">0</span>..<span class="number">8</span>].try_into().unwrap()) <span class="kw">as </span>usize
     }
 
-    <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
+    <span class="kw">pub fn </span>key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.raw[<span class="number">8</span>..(<span class="number">8 </span>+ <span class="self">self</span>.key_len())]
     }
 
@@ -906,7 +906,7 @@
         ) <span class="kw">as </span>usize
     }
 
-    <span class="kw">fn </span>value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
+    <span class="kw">pub fn </span>value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.raw[<span class="self">self</span>.value_offset()..(<span class="self">self</span>.value_offset() + <span class="self">self</span>.value_len())]
     }
 
