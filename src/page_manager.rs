@@ -84,8 +84,12 @@ impl PageManager {
         }
     }
 
+    pub(crate) fn get_metapage_mut(&self) -> PageMut {
+        self.get_page_mut(DB_METADATA_PAGE)
+    }
+
     /// Returns a mutable reference to the page with the specified number.
-    pub(crate) fn get_page_mut(&self, page_number: u64) -> PageMut {
+    fn get_page_mut(&self, page_number: u64) -> PageMut {
         assert!(page_number < *self.next_free_page.borrow());
         let start = page_number as usize * page_size::get();
         let end = start + page_size::get();
