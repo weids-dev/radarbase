@@ -4,31 +4,34 @@
 
 ### Indicator (mmap `O(1)`)
 ```                               
-mmap(): Loaded 100000 items in 75ms
+mmap(): Loaded 100000 items in 757ms
+mmap(): Random read 100000 items in 43ms
 mmap(): Random read 100000 items in 25ms
-mmap(): Random read 100000 items in 15ms
-mmap(): Random read 100000 items in 15ms
+mmap(): Random read 100000 items in 25ms
 ```
 
 ### Milestones
 
 **Timeline (newest to oldest)**
 
-* **[07-04-2023]
+* **[07-04-2023](https://github.com/weids-dev/radarbase/commit/d45112bf681cfdd0d4ba662ff2e8a6f9e44409ca) Implement Bulk Insert Version**
 ```
      Running benches/benchmark.rs (target/release/deps/benchmark-0322d0ccc42aabb8)
-lmdb-rkv: Loaded 100000 items in 2535ms
-lmdb-rkv: Random read 100000 items in 137ms
-lmdb-rkv: Random read 100000 items in 90ms
+lmdb-rkv: Bulk loaded 100000 items in 2263ms
+lmdb-rkv: Wrote 100 individual items in 1348ms
+lmdb-rkv: Random read 100000 items in 138ms
 lmdb-rkv: Random read 100000 items in 92ms
-radarbase: Loaded 100000 items in 2013ms
-radarbase: Random read 100000 items in 217ms
-radarbase: Random read 100000 items in 230ms
-radarbase: Random read 100000 items in 233ms
-sled: Loaded 100000 items in 3718ms
-sled: Random read 100000 items in 258ms
-sled: Random read 100000 items in 212ms
-sled: Random read 100000 items in 213ms
+lmdb-rkv: Random read 100000 items in 92ms
+radarbase: Bulk loaded 100000 items in 1643ms
+radarbase: Wrote 100 individual items in 2814ms
+radarbase: Random read 100000 items in 211ms
+radarbase: Random read 100000 items in 207ms
+radarbase: Random read 100000 items in 209ms
+sled: Bulk loaded 100000 items in 2393ms
+sled: Wrote 100 individual items in 243ms
+sled: Random read 100000 items in 267ms
+sled: Random read 100000 items in 206ms
+sled: Random read 100000 items in 206ms
      Running benches/common.rs (target/release/deps/common-ba49b4c18cf58a44)
 
 running 0 tests
@@ -36,21 +39,62 @@ running 0 tests
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
      Running benches/syscall_benchmark.rs (target/release/deps/syscall_benchmark-114836c52d12a9a6)
-lmdb-zero: Loaded 100000 items in 2604ms
-lmdb-zero: Random read 100000 items in 119ms
-lmdb-zero: Random read 100000 items in 96ms
-lmdb-zero: Random read 100000 items in 96ms
-read()/write(): Loaded 100000 items in 1321ms
-read()/write(): Random read 100000 items in 338ms
-read()/write(): Random read 100000 items in 338ms
-read()/write(): Random read 100000 items in 336ms
-mmap(): Loaded 100000 items in 757ms
-mmap(): Random read 100000 items in 43ms
+lmdb-zero: Loaded 100000 items in 1848ms
+lmdb-zero: Random read 100000 items in 116ms
+lmdb-zero: Random read 100000 items in 92ms
+lmdb-zero: Random read 100000 items in 94ms
+read()/write(): Loaded 100000 items in 868ms
+read()/write(): Random read 100000 items in 357ms
+read()/write(): Random read 100000 items in 339ms
+read()/write(): Random read 100000 items in 337ms
+mmap(): Loaded 100000 items in 512ms
+mmap(): Random read 100000 items in 40ms
+mmap(): Random read 100000 items in 24ms
 mmap(): Random read 100000 items in 25ms
-mmap(): Random read 100000 items in 25ms
-
 ```
-* **[07-01-2023]
+
+* **[06-29-2023](https://github.com/weids-dev/radarbase/commit/78ec31c6bb1b26e612c3254d524cf214139ae232) Exclusively Using Btree**
+```
+     Running benches/benchmark.rs (target/release/deps/benchmark-1bb2932149779cda)
+lmdb-rkv: Loaded 100000 items in 1798ms
+lmdb-rkv: Random read 100000 items in 135ms
+lmdb-rkv: Random read 100000 items in 94ms
+lmdb-rkv: Random read 100000 items in 93ms
+radarbase: Loaded 100000 items in 31151ms
+radarbase: Random read 100000 items in 1034ms
+radarbase: Random read 100000 items in 296ms
+radarbase: Random read 100000 items in 300ms
+sled: Loaded 100000 items in 2827ms
+sled: Random read 100000 items in 244ms
+sled: Random read 100000 items in 208ms
+sled: Random read 100000 items in 209ms
+     Running benches/common.rs (target/release/deps/common-b5810a9343a19dcd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches/syscall_benchmark.rs (target/release/deps/syscall_benchmark-5bfe02ef08ac8aa5)
+lmdb-zero: Loaded 100000 items in 2425ms
+lmdb-zero: Random read 100000 items in 119ms
+lmdb-zero: Random read 100000 items in 95ms
+lmdb-zero: Random read 100000 items in 96ms
+read()/write(): Loaded 100000 items in 1303ms
+read()/write(): Random read 100000 items in 339ms
+read()/write(): Random read 100000 items in 338ms
+read()/write(): Random read 100000 items in 337ms
+mmap(): Loaded 100000 items in 953ms
+mmap(): Random read 100000 items in 26ms
+mmap(): Random read 100000 items in 26ms
+mmap(): Random read 100000 items in 26ms
+```
+
+****
+
+### Below are the benches on my macbook, I've now run all the benches inside my Arch Linux Server, so all the benches above is on that server.
+
+****
+
 * **[06-28-2023](https://github.com/weids-dev/radarbase/commit/fa52bd2629503123fd3634e62bbc98dd239de250) Binary Tree with node-page Implementation**
 ```
 radarbase: Loaded 100000 items in 1503ms
