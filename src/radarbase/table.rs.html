@@ -281,6 +281,32 @@
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use </span><span class="kw">crate</span>::storage::Storage;
 <span class="kw">use </span><span class="kw">crate</span>::transactions::WriteTransaction;
@@ -562,6 +588,32 @@
         <span class="macro">assert_eq!</span>(<span class="string">b&quot;bar&quot;</span>, read_txn.get(<span class="string">b&quot;foo&quot;</span>).unwrap().unwrap().as_ref());
         <span class="macro">assert_eq!</span>(<span class="string">b&quot;beta&quot;</span>, read_txn.get(<span class="string">b&quot;alpha&quot;</span>).unwrap().unwrap().as_ref());
         <span class="macro">assert_eq!</span>(<span class="string">b&quot;cool&quot;</span>, read_txn.get(<span class="string">b&quot;rust&quot;</span>).unwrap().unwrap().as_ref());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>range_query() {
+        <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+        <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
+        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">&quot;&quot;</span>).unwrap();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">10u8 </span>{
+            <span class="kw">let </span>key = <span class="macro">vec!</span>[i];
+            write_txn.insert(<span class="kw-2">&amp;</span>key, <span class="string">b&quot;value&quot;</span>).unwrap();
+        }
+        write_txn.commit().unwrap();
+        <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
+        <span class="kw">let </span>start = <span class="macro">vec!</span>[<span class="number">3u8</span>];
+        <span class="kw">let </span>end = <span class="macro">vec!</span>[<span class="number">7u8</span>];
+        <span class="kw">let </span><span class="kw-2">mut </span>iter = read_txn
+            .get_range(start.as_slice()..end.as_slice())
+            .unwrap();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">3</span>..<span class="number">7u8 </span>{
+            <span class="kw">let </span>entry = iter.next().unwrap();
+            <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>[i], entry.key());
+            <span class="macro">assert_eq!</span>(<span class="string">b&quot;value&quot;</span>, entry.value());
+        }
+        <span class="macro">assert!</span>(iter.next().is_none());
     }
 }
 </code></pre></div></section></main></body></html>

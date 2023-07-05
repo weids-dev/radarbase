@@ -737,6 +737,32 @@
 <a href="#737" id="737">737</a>
 <a href="#738" id="738">738</a>
 <a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::Node::{Internal, Leaf};
 <span class="kw">use </span><span class="kw">crate</span>::binarytree::RangeIterState::{
     InitialState, InternalLeft, InternalRight, LeafLeft, LeafRight,
@@ -745,6 +771,7 @@
 <span class="kw">use </span>std::cell::Cell;
 <span class="kw">use </span>std::cmp::Ordering;
 <span class="kw">use </span>std::convert::TryInto;
+<span class="kw">use </span>std::ops::{Bound, RangeBounds};
 
 <span class="kw">const </span>LEAF: u8 = <span class="number">1</span>;
 <span class="kw">const </span>INTERNAL: u8 = <span class="number">2</span>;
@@ -822,7 +849,9 @@
     }
 
     <span class="kw">fn </span>get_entry(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;EntryAccessor&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
+        <span class="comment">// If it is a leaf, return the entry
+        // otherwise, return None
+        </span><span class="kw">match </span><span class="self">self </span>{
             RangeIterState::LeafLeft { page, .. } =&gt; <span class="prelude-val">Some</span>(LeafAccessor::new(<span class="kw-2">&amp;</span>page).lesser()),
             RangeIterState::LeafRight { page, .. } =&gt; LeafAccessor::new(<span class="kw-2">&amp;</span>page).greater(),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -830,27 +859,50 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">pub struct </span>BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt; {
     last: <span class="prelude-ty">Option</span>&lt;RangeIterState&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
+    query_range: T,
     manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(root_page: <span class="prelude-ty">Option</span>&lt;Page&lt;<span class="lifetime">&#39;a</span>&gt;&gt;, manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt; BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+        root_page: <span class="prelude-ty">Option</span>&lt;Page&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
+        query_range: T,
+        manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
+    ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             last: root_page.map(InitialState),
+            query_range,
             manager,
         }
     }
 
     <span class="comment">// TODO: we need generic-associated-types to implement Iterator
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;EntryAccessor&gt; {
+    </span><span class="kw">pub fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;EntryAccessor&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>state) = <span class="self">self</span>.last.take() {
             <span class="kw">loop </span>{
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(new_state) = state.next(<span class="self">self</span>.manager) {
-                    <span class="kw">if </span>new_state.get_entry().is_some() {
-                        <span class="self">self</span>.last = <span class="prelude-val">Some</span>(new_state);
-                        <span class="kw">return </span><span class="self">self</span>.last.as_ref().map(|s| s.get_entry().unwrap());
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = new_state.get_entry() {
+                        <span class="comment">// If the new state is a leaf, check if it&#39;s within the query range
+                        // TODO: optimize. This is very inefficient to retrieve and then ignore the values
+                        </span><span class="kw">if </span><span class="self">self</span>.query_range.contains(<span class="kw-2">&amp;</span>entry.key()) {
+                            <span class="self">self</span>.last = <span class="prelude-val">Some</span>(new_state);
+                            <span class="kw">return </span><span class="self">self</span>.last.as_ref().map(|s| s.get_entry().unwrap());
+                        } <span class="kw">else </span>{
+                            <span class="kw">if let </span>Bound::Included(end) = <span class="self">self</span>.query_range.end_bound() {
+                                <span class="kw">if </span>entry.key() &gt; end {
+                                    <span class="self">self</span>.last = <span class="prelude-val">None</span>;
+                                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                                }
+                            } <span class="kw">else if let </span>Bound::Excluded(end) = <span class="self">self</span>.query_range.end_bound() {
+                                <span class="kw">if </span>entry.key() &gt;= end {
+                                    <span class="self">self</span>.last = <span class="prelude-val">None</span>;
+                                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                                }
+                            }
+                            state = new_state;
+                        }
                     } <span class="kw">else </span>{
                         state = new_state;
                     }
@@ -864,7 +916,7 @@
     </span>}
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>BinarytreeEntry&lt;<span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>, <span class="lifetime">&#39;b</span>&gt; {
+<span class="kw">pub trait </span>BinarytreeEntry&lt;<span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>, <span class="lifetime">&#39;b</span>&gt; {
     <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8];
     <span class="kw">fn </span>value(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8];
 }
@@ -876,7 +928,7 @@
 // * (key_size bytes) key_data
 // * (8 bytes) value_size
 // * (value_size bytes) value_data
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>EntryAccessor&lt;<span class="lifetime">&#39;a</span>&gt; {
+</span><span class="kw">pub struct </span>EntryAccessor&lt;<span class="lifetime">&#39;a</span>&gt; {
     raw: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8],
 }
 

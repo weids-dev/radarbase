@@ -167,6 +167,20 @@
 <a href="#167" id="167">167</a>
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{
     lookup_in_raw, tree_delete, tree_insert, BinarytreeBuilder, BinarytreeRangeIter,
 };
@@ -175,6 +189,7 @@
 <span class="kw">use </span>memmap2::MmapMut;
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::convert::TryInto;
+<span class="kw">use </span>std::ops::RangeBounds;
 
 <span class="kw">const </span>MAGICNUMBER: [u8; <span class="number">4</span>] = [<span class="string">b&#39;r&#39;</span>, <span class="string">b&#39;a&#39;</span>, <span class="string">b&#39;d&#39;</span>, <span class="string">b&#39;b&#39;</span>];
 <span class="kw">const </span>ALLOCATOR_STATE_OFFSET: usize = MAGICNUMBER.len();
@@ -237,8 +252,8 @@
                 builder.add(<span class="kw-2">&amp;</span>key, <span class="kw-2">&amp;</span>value);
             }
             <span class="comment">// Copy all the existing entries
-            </span><span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(<span class="self">self</span>.get_root_page(), <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
-            <span class="kw">while let </span><span class="prelude-val">Some</span>(x) = iter.next() {
+            </span><span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(<span class="self">self</span>.get_root_page(), .., <span class="kw-2">&amp;</span><span class="self">self</span>.mem); <span class="comment">// RangeFull
+            </span><span class="kw">while let </span><span class="prelude-val">Some</span>(x) = iter.next() {
                 builder.add(x.key(), x.value());
             }
 
@@ -250,8 +265,9 @@
 
     <span class="doccomment">/// Get the number of entries
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>, root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(root_page.map(|p| <span class="self">self</span>.mem.get_page(p)), <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
-        <span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>iter =
+            BinarytreeRangeIter::new(root_page.map(|p| <span class="self">self</span>.mem.get_page(p)), .., <span class="kw-2">&amp;</span><span class="self">self</span>.mem); <span class="comment">// RangeFull
+        </span><span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
         <span class="kw">while </span>iter.next().is_some() {
             count += <span class="number">1</span>;
         }
@@ -308,6 +324,18 @@
             }
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_range&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt;(
+        <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
+        range: T,
+        root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T&gt;, Error&gt; {
+        <span class="prelude-val">Ok</span>(BinarytreeRangeIter::new(
+            root_page.map(|p| <span class="self">self</span>.mem.get_page(p)),
+            range,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.mem,
+        ))
     }
 
     <span class="comment">// Returns a boolean indicating if an entry was removed

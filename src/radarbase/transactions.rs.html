@@ -84,9 +84,20 @@
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::error::Error;
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::BinarytreeRangeIter;
+<span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use </span><span class="kw">crate</span>::storage::{AccessGuard, Storage};
 <span class="kw">use </span>std::collections::{HashMap, HashSet};
+<span class="kw">use </span>std::ops::RangeBounds;
 
 <span class="kw">pub struct </span>WriteTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
     storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage,
@@ -160,6 +171,13 @@
 
     <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&lt;<span class="lifetime">&#39;mmap</span>&gt;&gt;, Error&gt; {
         <span class="self">self</span>.storage.get(key, <span class="self">self</span>.root_page)
+    }
+
+    <span class="kw">pub fn </span>get_range&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt;(
+        <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
+        range: T,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T&gt;, Error&gt; {
+        <span class="self">self</span>.storage.get_range(range, <span class="self">self</span>.root_page)
     }
 
     <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
