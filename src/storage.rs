@@ -6,6 +6,7 @@ use crate::Error;
 use memmap2::MmapMut;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::ops::RangeBounds;
 
 const MAGICNUMBER: [u8; 4] = [b'r', b'a', b'd', b'b'];
 const ALLOCATOR_STATE_OFFSET: usize = MAGICNUMBER.len();
@@ -68,7 +69,7 @@ impl Storage {
                 builder.add(&key, &value);
             }
             // Copy all the existing entries
-            let mut iter = BinarytreeRangeIter::new(self.get_root_page(), &self.mem);
+            let mut iter = BinarytreeRangeIter::new(self.get_root_page(), .., &self.mem); // RangeFull
             while let Some(x) = iter.next() {
                 builder.add(x.key(), x.value());
             }
@@ -81,7 +82,8 @@ impl Storage {
 
     /// Get the number of entries
     pub(crate) fn len(&self, root_page: Option<u64>) -> Result<usize, Error> {
-        let mut iter = BinarytreeRangeIter::new(root_page.map(|p| self.mem.get_page(p)), &self.mem);
+        let mut iter =
+            BinarytreeRangeIter::new(root_page.map(|p| self.mem.get_page(p)), .., &self.mem); // RangeFull
         let mut count = 0;
         while iter.next().is_some() {
             count += 1;
@@ -139,6 +141,18 @@ impl Storage {
             }
         }
         Ok(None)
+    }
+
+    pub(crate) fn get_range<'a, T: RangeBounds<&'a [u8]>>(
+        &'a self,
+        range: T,
+        root_page: Option<u64>,
+    ) -> Result<BinarytreeRangeIter<T>, Error> {
+        Ok(BinarytreeRangeIter::new(
+            root_page.map(|p| self.mem.get_page(p)),
+            range,
+            &self.mem,
+        ))
     }
 
     // Returns a boolean indicating if an entry was removed
