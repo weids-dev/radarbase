@@ -154,6 +154,17 @@ impl Storage {
             &self.mem,
         ))
     }
+    pub(crate) fn get_range_reversed<'a, T: RangeBounds<&'a [u8]>>(
+        &'a self,
+        range: T,
+        root_page: Option<u64>,
+    ) -> Result<BinarytreeRangeIter<T>, Error> {
+        Ok(BinarytreeRangeIter::new_reversed(
+            root_page.map(|p| self.mem.get_page(p)),
+            range,
+            &self.mem,
+        ))
+    }
 
     // Returns a boolean indicating if an entry was removed
     pub(crate) fn remove(&self, key: &[u8]) -> Result<bool, Error> {
