@@ -927,6 +927,15 @@
 <a href="#927" id="927">927</a>
 <a href="#928" id="928">928</a>
 <a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::Node::{Internal, Leaf};
 <span class="kw">use </span><span class="kw">crate</span>::binarytree::RangeIterState::{
     InitialState, InternalLeft, InternalRight, LeafLeft, LeafRight,
@@ -1568,12 +1577,18 @@
             // e.g. when we insert a second leaf adjacent without modifying this one
             </span><span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
             builder.add(key, value);
-            builder.add(accessor.lesser().key(), accessor.lesser().value());
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = accessor.greater() {
-                builder.add(entry.key(), entry.value());
+            <span class="comment">// Overwrite the existing key-value pair if it exists
+            </span><span class="kw">if </span>key != accessor.lesser().key() {
+                builder.add(accessor.lesser().key(), accessor.lesser().value());
             }
-
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = accessor.greater() {
+                <span class="kw">if </span>key != entry.key() {
+                    <span class="comment">// Only add the non-duplicated key-value pair to achieve overwriting
+                    </span>builder.add(entry.key(), entry.value());
+                }
+            }
             <span class="comment">// TODO: shouldn&#39;t need to drop this, but we can&#39;t allocate when there are pages in flight
+            // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             </span>drop(page);
             builder.build().to_bytes(manager)
         }
@@ -1583,6 +1598,7 @@
             <span class="kw">let </span><span class="kw-2">mut </span>right_page = accessor.gt_page();
             <span class="kw">let </span>our_key = accessor.key().to_vec();
             <span class="comment">// TODO: shouldn&#39;t need to drop this, but we can&#39;t allocate when there are pages in flight
+            // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             </span>drop(page);
             <span class="kw">if </span>key &lt;= our_key.as_slice() {
                 left_page = tree_insert(manager.get_page(left_page), key, value, manager);
@@ -1795,7 +1811,9 @@
             } <span class="kw">else </span>{
                 <span class="macro">assert_eq!</span>(group.len(), <span class="number">2</span>);
                 <span class="kw">if </span>group[<span class="number">0</span>].<span class="number">0 </span>== group[<span class="number">1</span>].<span class="number">0 </span>{
-                    <span class="macro">todo!</span>(<span class="string">&quot;support overwriting existing keys&quot;</span>);
+                    <span class="comment">// This cannot happend, since we implement the overwriting feature
+                    // put the panic here to make sure we don&#39;t have bugs in the future
+                    </span><span class="macro">panic!</span>(<span class="string">&quot;duplicate key: {:?}&quot;</span>, group[<span class="number">0</span>].<span class="number">0</span>);
                 }
                 Leaf(
                     (group[<span class="number">0</span>].<span class="number">0</span>.to_vec(), group[<span class="number">0</span>].<span class="number">1</span>.to_vec()),

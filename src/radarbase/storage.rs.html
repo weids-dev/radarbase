@@ -192,6 +192,9 @@
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{
     lookup_in_raw, tree_delete, tree_insert, BinarytreeBuilder, BinarytreeRangeIter,
 };
@@ -259,13 +262,16 @@
         } <span class="kw">else </span>{
             <span class="comment">// rebuild the tree
             </span><span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
-            <span class="kw">for </span>(key, value) <span class="kw">in </span>entries {
-                builder.add(<span class="kw-2">&amp;</span>key, <span class="kw-2">&amp;</span>value);
-            }
             <span class="comment">// Copy all the existing entries
             </span><span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(<span class="self">self</span>.get_root_page(), .., <span class="kw-2">&amp;</span><span class="self">self</span>.mem); <span class="comment">// RangeFull
             </span><span class="kw">while let </span><span class="prelude-val">Some</span>(x) = iter.next() {
-                builder.add(x.key(), x.value());
+                <span class="kw">if </span>!entries.contains_key(x.key()) {
+                    <span class="comment">// Only copy entries that are not overwritten
+                    </span>builder.add(x.key(), x.value());
+                }
+            }
+            <span class="kw">for </span>(key, value) <span class="kw">in </span>entries {
+                builder.add(<span class="kw-2">&amp;</span>key, <span class="kw-2">&amp;</span>value);
             }
 
             <span class="kw">let </span>new_root = builder.build().to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem);
