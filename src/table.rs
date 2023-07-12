@@ -227,7 +227,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn read_isolation_complex_tree() {
         // Read isolation in MVCC:
         // Read transactions see a snapshot of the database at the point in
@@ -275,10 +274,32 @@ mod test {
         assert_eq!(b"cool2", read_txn2.get(b"rust").unwrap().unwrap().as_ref());
 
         // check read isolation: the first read transaction does not see any changes
+        // since we change to completly another new tree, all the nodes are newly allocated
         assert_eq!(b"world", read_txn.get(b"hello").unwrap().unwrap().as_ref());
         assert_eq!(b"bar", read_txn.get(b"foo").unwrap().unwrap().as_ref());
         assert_eq!(b"beta", read_txn.get(b"alpha").unwrap().unwrap().as_ref());
         assert_eq!(b"cool", read_txn.get(b"rust").unwrap().unwrap().as_ref());
+    }
+
+    #[test]
+    fn insert_overwrite() {
+        let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+        let db = unsafe { Database::open(tmpfile.path()).unwrap() };
+        let mut table = db.open_table("").unwrap();
+        let mut write_txn = table.begin_write().unwrap();
+        write_txn.insert(b"hello", b"world").unwrap();
+        write_txn.commit().unwrap();
+        let read_txn = table.read_transaction().unwrap();
+        assert_eq!(b"world", read_txn.get(b"hello").unwrap().unwrap().as_ref());
+
+        let mut write_txn = table.begin_write().unwrap();
+        write_txn.insert(b"hello", b"replaced").unwrap();
+        write_txn.commit().unwrap();
+        let read_txn = table.read_transaction().unwrap();
+        assert_eq!(
+            b"replaced",
+            read_txn.get(b"hello").unwrap().unwrap().as_ref()
+        );
     }
 
     #[test]

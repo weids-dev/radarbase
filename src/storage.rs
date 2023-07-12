@@ -65,13 +65,16 @@ impl Storage {
         } else {
             // rebuild the tree
             let mut builder = BinarytreeBuilder::new();
-            for (key, value) in entries {
-                builder.add(&key, &value);
-            }
             // Copy all the existing entries
             let mut iter = BinarytreeRangeIter::new(self.get_root_page(), .., &self.mem); // RangeFull
             while let Some(x) = iter.next() {
-                builder.add(x.key(), x.value());
+                if !entries.contains_key(x.key()) {
+                    // Only copy entries that are not overwritten
+                    builder.add(x.key(), x.value());
+                }
+            }
+            for (key, value) in entries {
+                builder.add(&key, &value);
             }
 
             let new_root = builder.build().to_bytes(&self.mem);

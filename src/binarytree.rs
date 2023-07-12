@@ -639,12 +639,18 @@ pub(crate) fn tree_insert<'a>(
             // e.g. when we insert a second leaf adjacent without modifying this one
             let mut builder = BinarytreeBuilder::new();
             builder.add(key, value);
-            builder.add(accessor.lesser().key(), accessor.lesser().value());
-            if let Some(entry) = accessor.greater() {
-                builder.add(entry.key(), entry.value());
+            // Overwrite the existing key-value pair if it exists
+            if key != accessor.lesser().key() {
+                builder.add(accessor.lesser().key(), accessor.lesser().value());
             }
-
+            if let Some(entry) = accessor.greater() {
+                if key != entry.key() {
+                    // Only add the non-duplicated key-value pair to achieve overwriting
+                    builder.add(entry.key(), entry.value());
+                }
+            }
             // TODO: shouldn't need to drop this, but we can't allocate when there are pages in flight
+            // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             drop(page);
             builder.build().to_bytes(manager)
         }
@@ -654,6 +660,7 @@ pub(crate) fn tree_insert<'a>(
             let mut right_page = accessor.gt_page();
             let our_key = accessor.key().to_vec();
             // TODO: shouldn't need to drop this, but we can't allocate when there are pages in flight
+            // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             drop(page);
             if key <= our_key.as_slice() {
                 left_page = tree_insert(manager.get_page(left_page), key, value, manager);
@@ -866,7 +873,9 @@ impl BinarytreeBuilder {
             } else {
                 assert_eq!(group.len(), 2);
                 if group[0].0 == group[1].0 {
-                    todo!("support overwriting existing keys");
+                    // This cannot happend, since we implement the overwriting feature
+                    // put the panic here to make sure we don't have bugs in the future
+                    panic!("duplicate key: {:?}", group[0].0);
                 }
                 Leaf(
                     (group[0].0.to_vec(), group[0].1.to_vec()),
