@@ -6,14 +6,16 @@ use std::ops::RangeBounds;
 
 pub struct WriteTransaction<'mmap> {
     storage: &'mmap Storage,
+    table_id: u64,
     added: HashMap<Vec<u8>, Vec<u8>>,
     removed: HashSet<Vec<u8>>,
 }
 
 impl<'mmap> WriteTransaction<'mmap> {
-    pub(crate) fn new(storage: &'mmap Storage) -> WriteTransaction<'mmap> {
+    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> WriteTransaction<'mmap> {
         WriteTransaction {
             storage,
+            table_id,
             added: HashMap::new(),
             removed: HashSet::new(),
         }
@@ -27,9 +29,9 @@ impl<'mmap> WriteTransaction<'mmap> {
 
     /// change the in-memory (mmap) data structure
     pub fn commit(self) -> Result<(), Error> {
-        self.storage.bulk_insert(self.added)?;
+        self.storage.bulk_insert(self.table_id, self.added)?;
         for key in self.removed.iter() {
-            self.storage.remove(key)?;
+            self.storage.remove(self.table_id, key)?;
         }
         self.storage.fsync()?;
         Ok(())
@@ -49,7 +51,8 @@ impl<'mmap> WriteTransaction<'mmap> {
         if let Some(value) = self.added.get(key) {
             return Ok(Some(AccessGuard::Local(value)));
         }
-        self.storage.get(key, self.storage.get_root_page_number())
+        self.storage
+            .get(self.table_id, key, self.storage.get_root_page_number())
     }
 
     pub fn remove(&mut self, key: &[u8]) -> Result<(), Error> {
@@ -66,37 +69,45 @@ impl<'mmap> WriteTransaction<'mmap> {
 pub struct ReadOnlyTransaction<'mmap> {
     storage: &'mmap Storage,
     root_page: Option<u64>,
+    table_id: u64,
 }
 
 impl<'mmap> ReadOnlyTransaction<'mmap> {
-    pub(crate) fn new(storage: &'mmap Storage) -> ReadOnlyTransaction<'mmap> {
+    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> ReadOnlyTransaction<'mmap> {
         let root_page = storage.get_root_page_number(); // Read isolation
-        ReadOnlyTransaction { storage, root_page }
+        ReadOnlyTransaction {
+            storage,
+            root_page,
+            table_id,
+        }
     }
 
     pub fn get(&self, key: &[u8]) -> Result<Option<AccessGuard<'mmap>>, Error> {
-        self.storage.get(key, self.root_page)
+        self.storage.get(self.table_id, key, self.root_page)
     }
 
     pub fn get_range<'a, T: RangeBounds<&'a [u8]>>(
         &'a self,
         range: T,
     ) -> Result<BinarytreeRangeIter<T>, Error> {
-        self.storage.get_range(range, self.root_page)
+        self.storage.get_range(self.table_id, range, self.root_page)
     }
 
     pub fn get_range_reversed<'a, T: RangeBounds<&'a [u8]>>(
         &'a self,
         range: T,
     ) -> Result<BinarytreeRangeIter<T>, Error> {
-        self.storage.get_range_reversed(range, self.root_page)
+        self.storage
+            .get_range_reversed(self.table_id, range, self.root_page)
     }
 
     pub fn len(&self) -> Result<usize, Error> {
-        self.storage.len(self.root_page)
+        self.storage.len(self.table_id, self.root_page)
     }
 
     pub fn is_empty(&self) -> Result<bool, Error> {
-        self.storage.len(self.root_page).map(|x| x == 0)
+        self.storage
+            .len(self.table_id, self.root_page)
+            .map(|x| x == 0)
     }
 }

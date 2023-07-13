@@ -28,7 +28,7 @@ pub struct RadbBenchTable<'a> {
 impl<'a> RadbBenchTable<'a> {
     pub fn new(db: &'a radarbase::Database) -> Self {
         RadbBenchTable {
-            table: db.open_table("").unwrap(),
+            table: db.open_table(b"x").unwrap(),
         }
     }
 }
