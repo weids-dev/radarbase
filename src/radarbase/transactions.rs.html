@@ -100,6 +100,17 @@
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::BinarytreeRangeIter;
 <span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use </span><span class="kw">crate</span>::storage::{AccessGuard, Storage};
@@ -108,14 +119,16 @@
 
 <span class="kw">pub struct </span>WriteTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
     storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage,
+    table_id: u64,
     added: HashMap&lt;Vec&lt;u8&gt;, Vec&lt;u8&gt;&gt;,
     removed: HashSet&lt;Vec&lt;u8&gt;&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;mmap</span>&gt; WriteTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage) -&gt; WriteTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(table_id: u64, storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage) -&gt; WriteTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
         WriteTransaction {
             storage,
+            table_id,
             added: HashMap::new(),
             removed: HashSet::new(),
         }
@@ -129,9 +142,9 @@
 
     <span class="doccomment">/// change the in-memory (mmap) data structure
     </span><span class="kw">pub fn </span>commit(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
-        <span class="self">self</span>.storage.bulk_insert(<span class="self">self</span>.added)<span class="question-mark">?</span>;
+        <span class="self">self</span>.storage.bulk_insert(<span class="self">self</span>.table_id, <span class="self">self</span>.added)<span class="question-mark">?</span>;
         <span class="kw">for </span>key <span class="kw">in </span><span class="self">self</span>.removed.iter() {
-            <span class="self">self</span>.storage.remove(key)<span class="question-mark">?</span>;
+            <span class="self">self</span>.storage.remove(<span class="self">self</span>.table_id, key)<span class="question-mark">?</span>;
         }
         <span class="self">self</span>.storage.fsync()<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
@@ -151,7 +164,8 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = <span class="self">self</span>.added.get(key) {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(AccessGuard::Local(value)));
         }
-        <span class="self">self</span>.storage.get(key, <span class="self">self</span>.storage.get_root_page_number())
+        <span class="self">self</span>.storage
+            .get(<span class="self">self</span>.table_id, key, <span class="self">self</span>.storage.get_root_page_number())
     }
 
     <span class="kw">pub fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
@@ -168,38 +182,46 @@
 <span class="kw">pub struct </span>ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
     storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage,
     root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;,
+    table_id: u64,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;mmap</span>&gt; ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage) -&gt; ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(table_id: u64, storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage) -&gt; ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt; {
         <span class="kw">let </span>root_page = storage.get_root_page_number(); <span class="comment">// Read isolation
-        </span>ReadOnlyTransaction { storage, root_page }
+        </span>ReadOnlyTransaction {
+            storage,
+            root_page,
+            table_id,
+        }
     }
 
     <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&lt;<span class="lifetime">&#39;mmap</span>&gt;&gt;, Error&gt; {
-        <span class="self">self</span>.storage.get(key, <span class="self">self</span>.root_page)
+        <span class="self">self</span>.storage.get(<span class="self">self</span>.table_id, key, <span class="self">self</span>.root_page)
     }
 
     <span class="kw">pub fn </span>get_range&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt;(
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
         range: T,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T&gt;, Error&gt; {
-        <span class="self">self</span>.storage.get_range(range, <span class="self">self</span>.root_page)
+        <span class="self">self</span>.storage.get_range(<span class="self">self</span>.table_id, range, <span class="self">self</span>.root_page)
     }
 
     <span class="kw">pub fn </span>get_range_reversed&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt;(
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
         range: T,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T&gt;, Error&gt; {
-        <span class="self">self</span>.storage.get_range_reversed(range, <span class="self">self</span>.root_page)
+        <span class="self">self</span>.storage
+            .get_range_reversed(<span class="self">self</span>.table_id, range, <span class="self">self</span>.root_page)
     }
 
     <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="self">self</span>.storage.len(<span class="self">self</span>.root_page)
+        <span class="self">self</span>.storage.len(<span class="self">self</span>.table_id, <span class="self">self</span>.root_page)
     }
 
     <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
-        <span class="self">self</span>.storage.len(<span class="self">self</span>.root_page).map(|x| x == <span class="number">0</span>)
+        <span class="self">self</span>.storage
+            .len(<span class="self">self</span>.table_id, <span class="self">self</span>.root_page)
+            .map(|x| x == <span class="number">0</span>)
     }
 }
 </code></pre></div></section></main></body></html>

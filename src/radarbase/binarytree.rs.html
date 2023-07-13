@@ -936,6 +936,54 @@
 <a href="#936" id="936">936</a>
 <a href="#937" id="937">937</a>
 <a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::Node::{Internal, Leaf};
 <span class="kw">use </span><span class="kw">crate</span>::binarytree::RangeIterState::{
     InitialState, InternalLeft, InternalRight, LeafLeft, LeafRight,
@@ -1164,6 +1212,7 @@
 
 <span class="kw">pub struct </span>BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt; {
     last: <span class="prelude-ty">Option</span>&lt;RangeIterState&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
+    table_id: u64,
     query_range: T,
     reversed: bool,
     manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
@@ -1172,11 +1221,13 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt; BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         root_page: <span class="prelude-ty">Option</span>&lt;Page&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
+        table_id: u64,
         query_range: T,
         manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             last: root_page.map(|p| InitialState(p, <span class="bool-val">false</span>)),
+            table_id,
             query_range,
             reversed: <span class="bool-val">false</span>,
             manager,
@@ -1185,11 +1236,13 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_reversed(
         root_page: <span class="prelude-ty">Option</span>&lt;Page&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
+        table_id: u64,
         query_range: T,
         manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             last: root_page.map(|p| InitialState(p, <span class="bool-val">true</span>)),
+            table_id,
             query_range,
             reversed: <span class="bool-val">true</span>,
             manager,
@@ -1204,33 +1257,35 @@
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = new_state.get_entry() {
                         <span class="comment">// If the new state is a leaf, check if it&#39;s within the query range
                         // TODO: optimize. This is very inefficient to retrieve and then ignore the values
-                        </span><span class="kw">if </span><span class="self">self</span>.query_range.contains(<span class="kw-2">&amp;</span>entry.key()) {
+                        </span><span class="kw">if </span><span class="self">self</span>.table_id == entry.table_id()
+                            &amp;&amp; <span class="self">self</span>.query_range.contains(<span class="kw-2">&amp;</span>entry.key())
+                        {
                             <span class="self">self</span>.last = <span class="prelude-val">Some</span>(new_state);
                             <span class="kw">return </span><span class="self">self</span>.last.as_ref().map(|s| s.get_entry().unwrap());
                         } <span class="kw">else </span>{
                             <span class="attr">#[allow(clippy::collapsible_else_if)]
                             </span><span class="kw">if </span><span class="self">self</span>.reversed {
                                 <span class="kw">if let </span>Bound::Included(start) = <span class="self">self</span>.query_range.start_bound() {
-                                    <span class="kw">if </span>entry.key() &lt; start {
+                                    <span class="kw">if </span>entry.table_and_key() &lt; (<span class="self">self</span>.table_id, <span class="kw-2">*</span>start) {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
                                 } <span class="kw">else if let </span>Bound::Excluded(start) =
                                     <span class="self">self</span>.query_range.start_bound()
                                 {
-                                    <span class="kw">if </span>entry.key() &lt;= start {
+                                    <span class="kw">if </span>entry.table_and_key() &lt;= (<span class="self">self</span>.table_id, <span class="kw-2">*</span>start) {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
                                 }
                             } <span class="kw">else </span>{
                                 <span class="kw">if let </span>Bound::Included(end) = <span class="self">self</span>.query_range.end_bound() {
-                                    <span class="kw">if </span>entry.key() &gt; end {
+                                    <span class="kw">if </span>entry.table_and_key() &gt; (<span class="self">self</span>.table_id, <span class="kw-2">*</span>end) {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
                                 } <span class="kw">else if let </span>Bound::Excluded(end) = <span class="self">self</span>.query_range.end_bound() {
-                                    <span class="kw">if </span>entry.key() &gt;= end {
+                                    <span class="kw">if </span>entry.table_and_key() &gt;= (<span class="self">self</span>.table_id, <span class="kw-2">*</span>end) {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
@@ -1260,6 +1315,8 @@
 //
 // Entry format is:
 // * (8 bytes) key_size
+// * (8 bytes) table_id, 64-bit big endian unsigned. Stored between key_size &amp; key_data, so that
+// it can be read with key_data as a single key_size + 8 length unique key for the entire db
 // * (key_size bytes) key_data
 // * (8 bytes) value_size
 // * (value_size bytes) value_data
@@ -1276,35 +1333,35 @@
         u64::from_be_bytes(<span class="self">self</span>.raw[<span class="number">0</span>..<span class="number">8</span>].try_into().unwrap()) <span class="kw">as </span>usize
     }
 
-    <span class="kw">pub fn </span>key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.raw[<span class="number">8</span>..(<span class="number">8 </span>+ <span class="self">self</span>.key_len())]
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>table_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+        u64::from_be_bytes(<span class="self">self</span>.raw[<span class="number">8</span>..<span class="number">16</span>].try_into().unwrap())
     }
 
     <span class="kw">fn </span>value_offset(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="number">8 </span>+ <span class="self">self</span>.key_len() + <span class="number">8
+        <span class="number">16 </span>+ <span class="self">self</span>.key_len() + <span class="number">8
     </span>}
 
     <span class="kw">fn </span>value_len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">let </span>key_len = <span class="self">self</span>.key_len();
         u64::from_be_bytes(
-            <span class="self">self</span>.raw[(<span class="number">8 </span>+ key_len)..(<span class="number">8 </span>+ key_len + <span class="number">8</span>)]
+            <span class="self">self</span>.raw[(<span class="number">16 </span>+ key_len)..(<span class="number">16 </span>+ key_len + <span class="number">8</span>)]
                 .try_into()
                 .unwrap(),
         ) <span class="kw">as </span>usize
     }
 
-    <span class="kw">pub fn </span>value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.raw[<span class="self">self</span>.value_offset()..(<span class="self">self</span>.value_offset() + <span class="self">self</span>.value_len())]
+    <span class="kw">fn </span>raw_len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="number">16 </span>+ <span class="self">self</span>.key_len() + <span class="number">8 </span>+ <span class="self">self</span>.value_len()
     }
 
-    <span class="kw">fn </span>raw_len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="number">8 </span>+ <span class="self">self</span>.key_len() + <span class="number">8 </span>+ <span class="self">self</span>.value_len()
+    <span class="kw">fn </span>table_and_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (u64, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]) {
+        (<span class="self">self</span>.table_id(), <span class="self">self</span>.key())
     }
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>, <span class="lifetime">&#39;b</span>&gt; BinarytreeEntry&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span>&gt; <span class="kw">for </span>EntryAccessor&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.raw[<span class="number">8</span>..(<span class="number">8 </span>+ <span class="self">self</span>.key_len())]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.raw[<span class="number">16</span>..(<span class="number">16 </span>+ <span class="self">self</span>.key_len())]
     }
 
     <span class="kw">fn </span>value(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8] {
@@ -1323,16 +1380,20 @@
         EntryMutator { raw }
     }
 
+    <span class="kw">fn </span>write_table_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table_id: u64) {
+        <span class="self">self</span>.raw[<span class="number">8</span>..<span class="number">16</span>].copy_from_slice(<span class="kw-2">&amp;</span>table_id.to_be_bytes());
+    }
+
     <span class="kw">fn </span>write_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) {
         <span class="self">self</span>.raw[<span class="number">0</span>..<span class="number">8</span>].copy_from_slice(<span class="kw-2">&amp;</span>(key.len() <span class="kw">as </span>u64).to_be_bytes());
-        <span class="self">self</span>.raw[<span class="number">8</span>..(<span class="number">8 </span>+ key.len())].copy_from_slice(key);
+        <span class="self">self</span>.raw[<span class="number">16</span>..(<span class="number">16 </span>+ key.len())].copy_from_slice(key);
     }
 
     <span class="kw">fn </span>write_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>[u8]) {
-        <span class="kw">let </span>value_offset = <span class="number">8 </span>+ EntryAccessor::new(<span class="self">self</span>.raw).key_len();
-        <span class="self">self</span>.raw[value_offset..(value_offset + <span class="number">8</span>)]
+        <span class="kw">let </span>value_offset = EntryAccessor::new(<span class="self">self</span>.raw).value_offset();
+        <span class="self">self</span>.raw[(value_offset - <span class="number">8</span>)..value_offset]
             .copy_from_slice(<span class="kw-2">&amp;</span>(value.len() <span class="kw">as </span>u64).to_be_bytes());
-        <span class="self">self</span>.raw[(value_offset + <span class="number">8</span>)..(value_offset + <span class="number">8 </span>+ value.len())].copy_from_slice(value);
+        <span class="self">self</span>.raw[value_offset..(value_offset + value.len())].copy_from_slice(value);
     }
 }
 
@@ -1385,20 +1446,22 @@
         LeafBuilder { page }
     }
 
-    <span class="kw">fn </span>write_lesser(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], value: <span class="kw-2">&amp;</span>[u8]) {
+    <span class="kw">fn </span>write_lesser(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table_id: u64, key: <span class="kw-2">&amp;</span>[u8], value: <span class="kw-2">&amp;</span>[u8]) {
         <span class="kw">let </span><span class="kw-2">mut </span>entry = EntryMutator::new(<span class="kw-2">&amp;mut </span><span class="self">self</span>.page.memory_mut()[<span class="number">1</span>..]);
+        entry.write_table_id(table_id);
         entry.write_key(key);
         entry.write_value(value);
     }
 
-    <span class="kw">fn </span>write_greater(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pair: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>[u8], <span class="kw-2">&amp;</span>[u8])&gt;) {
+    <span class="kw">fn </span>write_greater(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry: <span class="prelude-ty">Option</span>&lt;(u64, <span class="kw-2">&amp;</span>[u8], <span class="kw-2">&amp;</span>[u8])&gt;) {
         <span class="kw">let </span>offset = <span class="number">1 </span>+ EntryAccessor::new(<span class="kw-2">&amp;</span><span class="self">self</span>.page.memory()[<span class="number">1</span>..]).raw_len();
-        <span class="kw">let </span><span class="kw-2">mut </span>entry = EntryMutator::new(<span class="kw-2">&amp;mut </span><span class="self">self</span>.page.memory_mut()[offset..]);
-        <span class="kw">if let </span><span class="prelude-val">Some</span>((key, value)) = pair {
-            entry.write_key(key);
-            entry.write_value(value);
+        <span class="kw">let </span><span class="kw-2">mut </span>writer = EntryMutator::new(<span class="kw-2">&amp;mut </span><span class="self">self</span>.page.memory_mut()[offset..]);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((table_id, key, value)) = entry {
+            writer.write_table_id(table_id);
+            writer.write_key(key);
+            writer.write_value(value);
         } <span class="kw">else </span>{
-            entry.write_key(<span class="kw-2">&amp;</span>[]);
+            writer.write_key(<span class="kw-2">&amp;</span>[]);
         }
     }
 }
@@ -1408,6 +1471,7 @@
 // Entry format is:
 // * (1 byte) type: 2 = INTERNAL
 // * (8 bytes) key_len
+// * (8 bytes) table_id 64-bit big-endian unsigned
 // * (key_len bytes) key_data
 // * (8 bytes) lte_page: page number for keys &lt;= key_data
 // * (8 bytes) gt_page: page number for keys &gt; key_data
@@ -1424,17 +1488,25 @@
         u64::from_be_bytes(<span class="self">self</span>.page.memory()[<span class="number">1</span>..<span class="number">9</span>].try_into().unwrap()) <span class="kw">as </span>usize
     }
 
+    <span class="kw">fn </span>table_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+        u64::from_be_bytes(<span class="self">self</span>.page.memory()[<span class="number">9</span>..<span class="number">17</span>].try_into().unwrap())
+    }
+
+    <span class="kw">fn </span>table_and_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (u64, <span class="kw-2">&amp;</span>[u8]) {
+        (<span class="self">self</span>.table_id(), <span class="self">self</span>.key())
+    }
+
     <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.page.memory()[<span class="number">9</span>..(<span class="number">9 </span>+ <span class="self">self</span>.key_len())]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.page.memory()[<span class="number">17</span>..(<span class="number">17 </span>+ <span class="self">self</span>.key_len())]
     }
 
     <span class="kw">fn </span>lte_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
-        <span class="kw">let </span>offset = <span class="number">9 </span>+ <span class="self">self</span>.key_len();
+        <span class="kw">let </span>offset = <span class="number">17 </span>+ <span class="self">self</span>.key_len();
         u64::from_be_bytes(<span class="self">self</span>.page.memory()[offset..(offset + <span class="number">8</span>)].try_into().unwrap())
     }
 
     <span class="kw">fn </span>gt_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
-        <span class="kw">let </span>offset = <span class="number">9 </span>+ <span class="self">self</span>.key_len() + <span class="number">8</span>;
+        <span class="kw">let </span>offset = <span class="number">17 </span>+ <span class="self">self</span>.key_len() + <span class="number">8</span>;
         u64::from_be_bytes(<span class="self">self</span>.page.memory()[offset..(offset + <span class="number">8</span>)].try_into().unwrap())
     }
 }
@@ -1455,42 +1527,57 @@
         u64::from_be_bytes(<span class="self">self</span>.page.memory()[<span class="number">1</span>..<span class="number">9</span>].try_into().unwrap()) <span class="kw">as </span>usize
     }
 
-    <span class="kw">fn </span>write_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) {
+    <span class="kw">fn </span>write_table_and_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table_id: u64, key: <span class="kw-2">&amp;</span>[u8]) {
         <span class="self">self</span>.page.memory_mut()[<span class="number">1</span>..<span class="number">9</span>].copy_from_slice(<span class="kw-2">&amp;</span>(key.len() <span class="kw">as </span>u64).to_be_bytes());
-        <span class="self">self</span>.page.memory_mut()[<span class="number">9</span>..(<span class="number">9 </span>+ key.len())].copy_from_slice(key);
+        <span class="self">self</span>.page.memory_mut()[<span class="number">9</span>..<span class="number">17</span>].copy_from_slice(<span class="kw-2">&amp;</span>table_id.to_be_bytes());
+        <span class="self">self</span>.page.memory_mut()[<span class="number">17</span>..(<span class="number">17 </span>+ key.len())].copy_from_slice(key);
     }
 
     <span class="kw">fn </span>write_lte_page(<span class="kw-2">&amp;mut </span><span class="self">self</span>, page_number: u64) {
-        <span class="kw">let </span>offset = <span class="number">9 </span>+ <span class="self">self</span>.key_len();
+        <span class="kw">let </span>offset = <span class="number">17 </span>+ <span class="self">self</span>.key_len();
         <span class="self">self</span>.page.memory_mut()[offset..(offset + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>page_number.to_be_bytes());
     }
 
     <span class="kw">fn </span>write_gt_page(<span class="kw-2">&amp;mut </span><span class="self">self</span>, page_number: u64) {
-        <span class="kw">let </span>offset = <span class="number">9 </span>+ <span class="self">self</span>.key_len() + <span class="number">8</span>;
+        <span class="kw">let </span>offset = <span class="number">17 </span>+ <span class="self">self</span>.key_len() + <span class="number">8</span>;
         <span class="self">self</span>.page.memory_mut()[offset..(offset + <span class="number">8</span>)].copy_from_slice(<span class="kw-2">&amp;</span>page_number.to_be_bytes());
     }
 }
 
 <span class="comment">// Returns the page number of the sub-tree with this key deleted, or None if the sub-tree is empty.
 // If key is not found, guaranteed not to modify the tree
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tree_delete&lt;<span class="lifetime">&#39;a</span>&gt;(page: Page&lt;<span class="lifetime">&#39;a</span>&gt;, key: <span class="kw-2">&amp;</span>[u8], manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tree_delete&lt;<span class="lifetime">&#39;a</span>&gt;(
+    page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
+    table: u64,
+    key: <span class="kw-2">&amp;</span>[u8],
+    manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
+) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
     <span class="kw">let </span>node_mem = page.memory();
     <span class="kw">match </span>node_mem[<span class="number">0</span>] {
         LEAF =&gt; {
             <span class="kw">let </span>accessor = LeafAccessor::new(<span class="kw-2">&amp;</span>page);
             <span class="attr">#[allow(clippy::collapsible_else_if)]
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(greater) = accessor.greater() {
-                <span class="kw">if </span>key != accessor.lesser().key() &amp;&amp; key != greater.key() {
+                <span class="kw">if </span>(table, key) != accessor.lesser().table_and_key()
+                    &amp;&amp; (table, key) != greater.table_and_key()
+                {
                     <span class="comment">// Not found
                     </span><span class="kw">return </span><span class="prelude-val">Some</span>(page.get_page_number());
                 }
                 <span class="comment">// Found, create a new leaf with the other key
-                </span><span class="kw">let </span>new_leaf = <span class="kw">if </span>key == accessor.lesser().key() {
-                    <span class="comment">// # TODO: That will make a leaf node with no value in there
-                    </span>Leaf((greater.key().to_vec(), greater.value().to_vec()), <span class="prelude-val">None</span>)
+                </span><span class="kw">let </span>new_leaf = <span class="kw">if </span>(table, key) == accessor.lesser().table_and_key() {
+                    Leaf(
+                        (
+                            greater.table_id(),
+                            greater.key().to_vec(),
+                            greater.value().to_vec(),
+                        ),
+                        <span class="prelude-val">None</span>,
+                    )
                 } <span class="kw">else </span>{
                     Leaf(
                         (
+                            accessor.lesser().table_id(),
                             accessor.lesser().key().to_vec(),
                             accessor.lesser().value().to_vec(),
                         ),
@@ -1502,7 +1589,7 @@
                 </span>drop(page);
                 <span class="prelude-val">Some</span>(new_leaf.to_bytes(manager))
             } <span class="kw">else </span>{
-                <span class="kw">if </span>key == accessor.lesser().key() {
+                <span class="kw">if </span>(table, key) == accessor.lesser().table_and_key() {
                     <span class="comment">// Deleted the entire left
                     </span><span class="prelude-val">None
                 </span>} <span class="kw">else </span>{
@@ -1519,19 +1606,24 @@
             <span class="kw">let </span><span class="kw-2">mut </span>left_page = accessor.lte_page();
             <span class="kw">let </span><span class="kw-2">mut </span>right_page = accessor.gt_page();
             <span class="comment">// TODO: we should recompute our key, since it may now be smaller (if the largest key in the left tree was deleted)
-            </span><span class="kw">let </span>our_key = accessor.key().to_vec();
+            </span><span class="kw">let </span>our_table = accessor.table_id();
+            <span class="kw">let </span>our_key = accessor.key().to_vec();
             <span class="comment">// TODO: shouldn&#39;t need to drop this, but we can&#39;t allocate when there are pages in flight
             </span>drop(page);
             <span class="attr">#[allow(clippy::collapsible_else_if)]
-            </span><span class="kw">if </span>key &lt;= our_key.as_slice() {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(page_number) = tree_delete(manager.get_page(left_page), key, manager) {
+            </span><span class="kw">if </span>(table, key) &lt;= (our_table, our_key.as_slice()) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(page_number) =
+                    tree_delete(manager.get_page(left_page), table, key, manager)
+                {
                     left_page = page_number;
                 } <span class="kw">else </span>{
                     <span class="comment">// The entire left sub-tree was deleted, replace ourself with the right tree
                     </span><span class="kw">return </span><span class="prelude-val">Some</span>(right_page);
                 }
             } <span class="kw">else </span>{
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(page_number) = tree_delete(manager.get_page(right_page), key, manager) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(page_number) =
+                    tree_delete(manager.get_page(right_page), table, key, manager)
+                {
                     right_page = page_number;
                 } <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Some</span>(left_page);
@@ -1549,7 +1641,7 @@
             // will also be a new allocated page, which make us achieve read isolation
             </span><span class="kw">let </span><span class="kw-2">mut </span>page = manager.allocate();
             <span class="kw">let </span><span class="kw-2">mut </span>builder = InternalBuilder::new(<span class="kw-2">&amp;mut </span>page);
-            builder.write_key(<span class="kw-2">&amp;</span>our_key);
+            builder.write_table_and_key(our_table, <span class="kw-2">&amp;</span>our_key);
             builder.write_lte_page(left_page);
             builder.write_gt_page(right_page);
 
@@ -1562,6 +1654,7 @@
 <span class="comment">// Returns the page number of the sub-tree into which the key was inserted
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tree_insert&lt;<span class="lifetime">&#39;a</span>&gt;(
     page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
+    table: u64,
     key: <span class="kw-2">&amp;</span>[u8],
     value: <span class="kw-2">&amp;</span>[u8],
     manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
@@ -1576,15 +1669,17 @@
             <span class="comment">// TODO: this is suboptimal, because it may rebuild the leaf page even if it&#39;s not necessary:
             // e.g. when we insert a second leaf adjacent without modifying this one
             </span><span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
-            builder.add(key, value);
-            <span class="comment">// Overwrite the existing key-value pair if it exists
-            </span><span class="kw">if </span>key != accessor.lesser().key() {
-                builder.add(accessor.lesser().key(), accessor.lesser().value());
+            builder.add(table, key, value);
+            <span class="kw">if </span>(table, key) != accessor.lesser().table_and_key() {
+                builder.add(
+                    accessor.lesser().table_id(),
+                    accessor.lesser().key(),
+                    accessor.lesser().value(),
+                );
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = accessor.greater() {
-                <span class="kw">if </span>key != entry.key() {
-                    <span class="comment">// Only add the non-duplicated key-value pair to achieve overwriting
-                    </span>builder.add(entry.key(), entry.value());
+                <span class="kw">if </span>(table, key) != entry.table_and_key() {
+                    builder.add(entry.table_id(), entry.key(), entry.value());
                 }
             }
             <span class="comment">// TODO: shouldn&#39;t need to drop this, but we can&#39;t allocate when there are pages in flight
@@ -1596,20 +1691,21 @@
             <span class="kw">let </span>accessor = InternalAccessor::new(<span class="kw-2">&amp;</span>page);
             <span class="kw">let </span><span class="kw-2">mut </span>left_page = accessor.lte_page();
             <span class="kw">let </span><span class="kw-2">mut </span>right_page = accessor.gt_page();
+            <span class="kw">let </span>our_table = accessor.table_id();
             <span class="kw">let </span>our_key = accessor.key().to_vec();
             <span class="comment">// TODO: shouldn&#39;t need to drop this, but we can&#39;t allocate when there are pages in flight
             // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             </span>drop(page);
-            <span class="kw">if </span>key &lt;= our_key.as_slice() {
-                left_page = tree_insert(manager.get_page(left_page), key, value, manager);
+            <span class="kw">if </span>(table, key) &lt;= (our_table, our_key.as_slice()) {
+                left_page = tree_insert(manager.get_page(left_page), table, key, value, manager);
             } <span class="kw">else </span>{
-                right_page = tree_insert(manager.get_page(right_page), key, value, manager);
+                right_page = tree_insert(manager.get_page(right_page), table, key, value, manager);
             }
 
             <span class="comment">// create the new root node
             </span><span class="kw">let </span><span class="kw-2">mut </span>page = manager.allocate();
             <span class="kw">let </span><span class="kw-2">mut </span>builder = InternalBuilder::new(<span class="kw-2">&amp;mut </span>page);
-            builder.write_key(<span class="kw-2">&amp;</span>our_key);
+            builder.write_table_and_key(our_table, <span class="kw-2">&amp;</span>our_key);
             builder.write_lte_page(left_page);
             builder.write_gt_page(right_page);
 
@@ -1655,6 +1751,7 @@
 /// recognized node type (1 for leaf node or 2 for internal node).
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_in_raw&lt;<span class="lifetime">&#39;a</span>&gt;(
     page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
+    table: u64,
     query: <span class="kw-2">&amp;</span>[u8],
     manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;(Page&lt;<span class="lifetime">&#39;a</span>&gt;, usize, usize)&gt; {
@@ -1663,7 +1760,7 @@
         LEAF =&gt; {
             <span class="comment">// Leaf node
             </span><span class="kw">let </span>accessor = LeafAccessor::new(<span class="kw-2">&amp;</span>page);
-            <span class="kw">match </span>query.cmp(accessor.lesser().key()) {
+            <span class="kw">match </span>(table, query).cmp(<span class="kw-2">&amp;</span>accessor.lesser().table_and_key()) {
                 Ordering::Less =&gt; <span class="prelude-val">None</span>,
                 Ordering::Equal =&gt; {
                     <span class="kw">let </span>offset = accessor.offset_of_lesser() + accessor.lesser().value_offset();
@@ -1672,9 +1769,13 @@
                 }
                 Ordering::Greater =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = accessor.greater() {
-                        <span class="kw">let </span>offset = accessor.offset_of_greater() + entry.value_offset();
-                        <span class="kw">let </span>value_len = entry.value().len();
-                        <span class="prelude-val">Some</span>((page, offset, value_len))
+                        <span class="kw">if </span>(table, query) == entry.table_and_key() {
+                            <span class="kw">let </span>offset = accessor.offset_of_greater() + entry.value_offset();
+                            <span class="kw">let </span>value_len = entry.value().len();
+                            <span class="prelude-val">Some</span>((page, offset, value_len))
+                        } <span class="kw">else </span>{
+                            <span class="prelude-val">None
+                        </span>}
                     } <span class="kw">else </span>{
                         <span class="prelude-val">None
                     </span>}
@@ -1685,10 +1786,10 @@
             <span class="kw">let </span>accessor = InternalAccessor::new(<span class="kw-2">&amp;</span>page);
             <span class="kw">let </span>left_page = accessor.lte_page();
             <span class="kw">let </span>right_page = accessor.gt_page();
-            <span class="kw">if </span>query &lt;= accessor.key() {
-                lookup_in_raw(manager.get_page(left_page), query, manager)
+            <span class="kw">if </span>(table, query) &lt;= accessor.table_and_key() {
+                lookup_in_raw(manager.get_page(left_page), table, query, manager)
             } <span class="kw">else </span>{
-                lookup_in_raw(manager.get_page(right_page), query, manager)
+                lookup_in_raw(manager.get_page(right_page), table, query, manager)
             }
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -1697,36 +1798,32 @@
 
 <span class="attr">#[derive(Eq, PartialEq, Debug)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Node {
-    <span class="comment">// To decrease the height of the tree, each leaf node may have two key-value pairs
-    </span>Leaf((Vec&lt;u8&gt;, Vec&lt;u8&gt;), <span class="prelude-ty">Option</span>&lt;(Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;),
-    Internal(Box&lt;Node&gt;, Vec&lt;u8&gt;, Box&lt;Node&gt;),
+    Leaf((u64, Vec&lt;u8&gt;, Vec&lt;u8&gt;), <span class="prelude-ty">Option</span>&lt;(u64, Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;),
+    Internal(Box&lt;Node&gt;, u64, Vec&lt;u8&gt;, Box&lt;Node&gt;),
 }
 
 <span class="kw">impl </span>Node {
-    <span class="doccomment">/// Returns the page number that the node was written to
-    /// To support MVCC read isolation, we need to re-allocate a page in
-    /// disk for every chanegs. which is very inefficient.
-    ///
-    /// To understand the internal-structure of the page, please refer to
+    <span class="comment">// Returns the page number that the node was written to
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, page_manager: <span class="kw-2">&amp;</span>PageManager) -&gt; u64 {
         <span class="kw">match </span><span class="self">self </span>{
             Node::Leaf(left_val, right_val) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>page = page_manager.allocate();
                 <span class="kw">let </span><span class="kw-2">mut </span>builder = LeafBuilder::new(<span class="kw-2">&amp;mut </span>page);
-                builder.write_lesser(<span class="kw-2">&amp;</span>left_val.<span class="number">0</span>, <span class="kw-2">&amp;</span>left_val.<span class="number">1</span>);
+                builder.write_lesser(left_val.<span class="number">0</span>, <span class="kw-2">&amp;</span>left_val.<span class="number">1</span>, <span class="kw-2">&amp;</span>left_val.<span class="number">2</span>);
                 builder.write_greater(
                     right_val
                         .as_ref()
-                        .map(|(key, value)| (key.as_slice(), value.as_slice())),
+                        .map(|(table, key, value)| (<span class="kw-2">*</span>table, key.as_slice(), value.as_slice())),
                 );
+
                 page.get_page_number()
             }
-            Node::Internal(left, key, right) =&gt; {
+            Node::Internal(left, table, key, right) =&gt; {
                 <span class="kw">let </span>left_page = left.to_bytes(page_manager);
                 <span class="kw">let </span>right_page = right.to_bytes(page_manager);
                 <span class="kw">let </span><span class="kw-2">mut </span>page = page_manager.allocate();
                 <span class="kw">let </span><span class="kw-2">mut </span>builder = InternalBuilder::new(<span class="kw-2">&amp;mut </span>page);
-                builder.write_key(key);
+                builder.write_table_and_key(<span class="kw-2">*</span>table, key);
                 builder.write_lte_page(left_page);
                 builder.write_gt_page(right_page);
 
@@ -1735,23 +1832,22 @@
         }
     }
 
-    <span class="doccomment">/// Returns the maximum key in the tree
-    </span><span class="kw">fn </span>get_max_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;u8&gt; {
+    <span class="kw">fn </span>get_max_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (u64, Vec&lt;u8&gt;) {
         <span class="kw">match </span><span class="self">self </span>{
-            Node::Leaf((left_key, <span class="kw">_</span>), right_val) =&gt; {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>((right_key, <span class="kw">_</span>)) = right_val {
-                    right_key.to_vec()
+            Node::Leaf((left_table, left_key, <span class="kw">_</span>), right_val) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>((right_table, right_key, <span class="kw">_</span>)) = right_val {
+                    (<span class="kw-2">*</span>right_table, right_key.to_vec())
                 } <span class="kw">else </span>{
-                    left_key.to_vec()
+                    (<span class="kw-2">*</span>left_table, left_key.to_vec())
                 }
             }
-            Node::Internal(_left, _key, right) =&gt; right.get_max_key(),
+            Node::Internal(_left, _table, _key, right) =&gt; right.get_max_key(),
         }
     }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BinarytreeBuilder {
-    pairs: Vec&lt;(Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;,
+    pairs: Vec&lt;(u64, Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;,
 }
 
 <span class="kw">impl </span>BinarytreeBuilder {
@@ -1759,8 +1855,8 @@
         BinarytreeBuilder { pairs: <span class="macro">vec!</span>[] }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], value: <span class="kw-2">&amp;</span>[u8]) {
-        <span class="self">self</span>.pairs.push((key.to_vec(), value.to_vec()));
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, table: u64, key: <span class="kw-2">&amp;</span>[u8], value: <span class="kw-2">&amp;</span>[u8]) {
+        <span class="self">self</span>.pairs.push((table, key.to_vec(), value.to_vec()));
     }
 
     <span class="doccomment">/// Builds a balanced binary tree from the provided key-value pairs.
@@ -1807,17 +1903,17 @@
 
         <span class="kw">for </span>group <span class="kw">in </span><span class="self">self</span>.pairs.chunks(<span class="number">2</span>) {
             <span class="kw">let </span>leaf = <span class="kw">if </span>group.len() == <span class="number">1 </span>{
-                Leaf((group[<span class="number">0</span>].<span class="number">0</span>.to_vec(), group[<span class="number">0</span>].<span class="number">1</span>.to_vec()), <span class="prelude-val">None</span>)
+                Leaf((group[<span class="number">0</span>].<span class="number">0</span>, group[<span class="number">0</span>].<span class="number">1</span>.to_vec(), group[<span class="number">0</span>].<span class="number">2</span>.to_vec()), <span class="prelude-val">None</span>)
             } <span class="kw">else </span>{
                 <span class="macro">assert_eq!</span>(group.len(), <span class="number">2</span>);
-                <span class="kw">if </span>group[<span class="number">0</span>].<span class="number">0 </span>== group[<span class="number">1</span>].<span class="number">0 </span>{
+                <span class="kw">if </span>(group[<span class="number">0</span>].<span class="number">0</span>, <span class="kw-2">&amp;</span>group[<span class="number">0</span>].<span class="number">1</span>) == (group[<span class="number">1</span>].<span class="number">0</span>, <span class="kw-2">&amp;</span>group[<span class="number">1</span>].<span class="number">1</span>) {
                     <span class="comment">// This cannot happend, since we implement the overwriting feature
                     // put the panic here to make sure we don&#39;t have bugs in the future
                     </span><span class="macro">panic!</span>(<span class="string">&quot;duplicate key: {:?}&quot;</span>, group[<span class="number">0</span>].<span class="number">0</span>);
                 }
                 Leaf(
-                    (group[<span class="number">0</span>].<span class="number">0</span>.to_vec(), group[<span class="number">0</span>].<span class="number">1</span>.to_vec()),
-                    <span class="prelude-val">Some</span>((group[<span class="number">1</span>].<span class="number">0</span>.to_vec(), group[<span class="number">1</span>].<span class="number">1</span>.to_vec())),
+                    (group[<span class="number">0</span>].<span class="number">0</span>, group[<span class="number">0</span>].<span class="number">1</span>.to_vec(), group[<span class="number">0</span>].<span class="number">2</span>.to_vec()),
+                    <span class="prelude-val">Some</span>((group[<span class="number">1</span>].<span class="number">0</span>, group[<span class="number">1</span>].<span class="number">1</span>.to_vec(), group[<span class="number">1</span>].<span class="number">2</span>.to_vec())),
                 )
             };
             leaves.push(leaf);
@@ -1830,8 +1926,8 @@
             <span class="kw">let </span><span class="kw-2">mut </span>internals = <span class="macro">vec!</span>[];
             <span class="kw">for </span>node <span class="kw">in </span>bottom.drain(..) {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(previous_node) = maybe_previous_node.take() {
-                    <span class="kw">let </span>key = previous_node.get_max_key(); <span class="comment">// 2
-                    </span><span class="kw">let </span>internal = Internal(Box::new(previous_node), key, Box::new(node));
+                    <span class="kw">let </span>(table, key) = previous_node.get_max_key();
+                    <span class="kw">let </span>internal = Internal(Box::new(previous_node), table, key, Box::new(node));
                     internals.push(internal)
                 } <span class="kw">else </span>{
                     maybe_previous_node.set(<span class="prelude-val">Some</span>(node));
@@ -1856,20 +1952,20 @@
 
     <span class="kw">fn </span>gen_tree() -&gt; Node {
         <span class="kw">let </span>left = Leaf(
-            (<span class="string">b&quot;hello&quot;</span>.to_vec(), <span class="string">b&quot;world&quot;</span>.to_vec()),
-            <span class="prelude-val">Some</span>((<span class="string">b&quot;hello2&quot;</span>.to_vec(), <span class="string">b&quot;world2&quot;</span>.to_vec())),
+            (<span class="number">1</span>, <span class="string">b&quot;hello&quot;</span>.to_vec(), <span class="string">b&quot;world&quot;</span>.to_vec()),
+            <span class="prelude-val">Some</span>((<span class="number">1</span>, <span class="string">b&quot;hello2&quot;</span>.to_vec(), <span class="string">b&quot;world2&quot;</span>.to_vec())),
         );
-        <span class="kw">let </span>right = Leaf((<span class="string">b&quot;hello3&quot;</span>.to_vec(), <span class="string">b&quot;world3&quot;</span>.to_vec()), <span class="prelude-val">None</span>);
-        Internal(Box::new(left), <span class="string">b&quot;hello2&quot;</span>.to_vec(), Box::new(right))
+        <span class="kw">let </span>right = Leaf((<span class="number">1</span>, <span class="string">b&quot;hello3&quot;</span>.to_vec(), <span class="string">b&quot;world3&quot;</span>.to_vec()), <span class="prelude-val">None</span>);
+        Internal(Box::new(left), <span class="number">1</span>, <span class="string">b&quot;hello2&quot;</span>.to_vec(), Box::new(right))
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>builder() {
         <span class="kw">let </span>expected = gen_tree();
         <span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
-        builder.add(<span class="string">b&quot;hello2&quot;</span>, <span class="string">b&quot;world2&quot;</span>);
-        builder.add(<span class="string">b&quot;hello3&quot;</span>, <span class="string">b&quot;world3&quot;</span>);
-        builder.add(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>);
+        builder.add(<span class="number">1</span>, <span class="string">b&quot;hello2&quot;</span>, <span class="string">b&quot;world2&quot;</span>);
+        builder.add(<span class="number">1</span>, <span class="string">b&quot;hello3&quot;</span>, <span class="string">b&quot;world3&quot;</span>);
+        builder.add(<span class="number">1</span>, <span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>);
 
         <span class="macro">assert_eq!</span>(expected, builder.build());
     }
