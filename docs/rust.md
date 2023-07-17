@@ -86,3 +86,48 @@ This is a simple illustration of using multiple lifetimes in a single scope. Her
 In general, you only need to worry about **lifetimes** when you're dealing with **references**. If your data structures own their data (instead of borrowing it), then you don't need to specify lifetimes. For example, if `Dog` owned its `name` (like `name: String` instead of `name: &str`), then you wouldn't need to specify a lifetime for `Dog`.
 
 In summary, you don't always need to annotate lifetimes in Rust, but you do need to do so when defining structures that borrow data. It's a bit of extra work, but it's what allows Rust to guarantee memory safety at compile time.
+
+### Trait
+
+Traits in Rust are similar to interfaces in other languages like Java. They define a set of methods that a type **must have to** implement the trait.
+Since rust doesn't have "classes" in the same way those languages like Java or C++ do, the traits is used to reuse code and share behavior between types (structs).
+
+```rust
+pub trait Animal {
+    fn name(&self) -> &'static str;
+    fn speak(&self);
+}
+
+pub trait Pet {
+    fn owner(&self) -> &'static str;
+}
+
+pub struct Dog {
+    owner: &'static str,
+}
+
+impl Animal for Dog {
+    fn name(&self) -> &'static str {
+        "Dog"
+    }
+
+    fn speak(&self) {
+        println!("{} says woof", self.name());
+    }
+}
+
+impl Pet for Dog {
+    fn owner(&self) -> &'static str {
+        self.owner
+    }
+}
+
+fn main() {
+    let dog = Dog { owner: "Alice" };
+
+    println!("{}'s pet {} says:", dog.owner(), dog.name());
+    dog.speak();
+}
+```
+
+In Rust, when you see a syntax like `impl TraitName for TypeName { ... }`, the `TraitName` must be a `trait` and `TypeName` must be a `struct`, `enum`, or another `type`.
