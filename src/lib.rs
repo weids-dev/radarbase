@@ -4,7 +4,7 @@ mod page_manager;
 mod storage;
 mod table;
 mod transactions;
-mod types; // Add custom ordering of keys (from vienna VSCode :))
+mod types;
 
 /// This module provides an implementation of a binary tree.
 ///
