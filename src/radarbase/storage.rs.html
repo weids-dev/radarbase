@@ -237,16 +237,46 @@
 <a href="#237" id="237">237</a>
 <a href="#238" id="238">238</a>
 <a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::{
     lookup_in_raw, tree_delete, tree_insert, BinarytreeBuilder, BinarytreeEntry,
     BinarytreeRangeIter,
 };
 <span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, DB_METADATA_PAGE};
+<span class="kw">use </span><span class="kw">crate</span>::types::RadbKey;
 <span class="kw">use </span><span class="kw">crate</span>::Error;
 <span class="kw">use </span>memmap2::MmapMut;
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::convert::TryInto;
-<span class="kw">use </span>std::ops::RangeBounds;
+<span class="kw">use </span>std::ops::{RangeBounds, RangeFull};
 
 <span class="kw">const </span>MAGICNUMBER: [u8; <span class="number">4</span>] = [<span class="string">b&#39;r&#39;</span>, <span class="string">b&#39;a&#39;</span>, <span class="string">b&#39;d&#39;</span>, <span class="string">b&#39;b&#39;</span>];
 <span class="kw">const </span>ALLOCATOR_STATE_OFFSET: usize = MAGICNUMBER.len();
@@ -284,37 +314,49 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_or_create_table(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;u64, Error&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(found) = <span class="self">self</span>.get(TABLE_TABLE_ID, name, <span class="self">self</span>.get_root_page_number())<span class="question-mark">? </span>{
+        <span class="comment">// if the table already exists, return its id
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(found) = <span class="self">self</span>.get::&lt;[u8]&gt;(TABLE_TABLE_ID, name, <span class="self">self</span>.get_root_page_number())<span class="question-mark">? </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(u64::from_be_bytes(found.as_ref().try_into().unwrap()));
         }
-        <span class="kw">let </span><span class="kw-2">mut </span>iter = <span class="self">self</span>.get_range_reversed(TABLE_TABLE_ID, .., <span class="self">self</span>.get_root_page_number())<span class="question-mark">?</span>;
+
+        <span class="comment">// otherwise, create a new table
+        </span><span class="kw">let </span><span class="kw-2">mut </span>iter = <span class="self">self</span>.get_range_reversed::&lt;RangeFull, [u8]&gt;(
+            TABLE_TABLE_ID,
+            ..,
+            <span class="self">self</span>.get_root_page_number(),
+        )<span class="question-mark">?</span>;
         <span class="kw">let </span>largest_id = iter
             .next()
             .map(|x| u64::from_be_bytes(x.value().try_into().unwrap()))
             .unwrap_or(TABLE_TABLE_ID);
         drop(iter);
         <span class="kw">let </span>new_id = largest_id + <span class="number">1</span>;
-        <span class="self">self</span>.insert(TABLE_TABLE_ID, name, <span class="kw-2">&amp;</span>new_id.to_be_bytes())<span class="question-mark">?</span>;
+        <span class="self">self</span>.insert::&lt;[u8]&gt;(TABLE_TABLE_ID, name, <span class="kw-2">&amp;</span>new_id.to_be_bytes())<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(new_id)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: u64, key: <span class="kw-2">&amp;</span>[u8], value: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        table_id: u64,
+        key: <span class="kw-2">&amp;</span>[u8],
+        value: <span class="kw-2">&amp;</span>[u8],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), Error&gt; {
         <span class="kw">let </span>new_root = <span class="kw">if let </span><span class="prelude-val">Some</span>(root) = <span class="self">self</span>.get_root_page() {
             <span class="comment">// If there is already a root page, insert into the existing tree
             // quite inefficiently, only if the tree is contain less node
-            </span>tree_insert(root, table_id, key, value, <span class="kw-2">&amp;</span><span class="self">self</span>.mem)
+            </span>tree_insert::&lt;K&gt;(root, table_id, key, value, <span class="kw-2">&amp;</span><span class="self">self</span>.mem)
         } <span class="kw">else </span>{
             <span class="comment">// If there is no root page, create a new tree
             // (only happends when first inserting)
             </span><span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
             builder.add(table_id, key, value);
-            builder.build().to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem)
+            builder.build::&lt;K&gt;().to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem)
         };
         <span class="self">self</span>.set_root_page(<span class="prelude-val">Some</span>(new_root));
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bulk_insert(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bulk_insert&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         table_id: u64,
         entries: HashMap&lt;Vec&lt;u8&gt;, Vec&lt;u8&gt;&gt;,
@@ -322,13 +364,17 @@
         <span class="comment">// Assume that rewriting half the tree is about the same cost as building a completely new one
         </span><span class="kw">if </span>entries.len() &lt;= <span class="self">self</span>.len(table_id, <span class="self">self</span>.get_root_page_number())<span class="question-mark">? </span>/ <span class="number">2 </span>{
             <span class="kw">for </span>(key, value) <span class="kw">in </span>entries.iter() {
-                <span class="self">self</span>.insert(table_id, key, value)<span class="question-mark">?</span>;
+                <span class="self">self</span>.insert::&lt;K&gt;(table_id, key, value)<span class="question-mark">?</span>;
             }
         } <span class="kw">else </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
             <span class="comment">// Copy all the existing entries
-            </span><span class="kw">let </span><span class="kw-2">mut </span>tables_iter =
-                BinarytreeRangeIter::new(<span class="self">self</span>.get_root_page(), TABLE_TABLE_ID, .., <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
+            </span><span class="kw">let </span><span class="kw-2">mut </span>tables_iter = BinarytreeRangeIter::&lt;RangeFull, [u8]&gt;::new(
+                <span class="self">self</span>.get_root_page(),
+                TABLE_TABLE_ID,
+                ..,
+                <span class="kw-2">&amp;</span><span class="self">self</span>.mem,
+            );
             <span class="kw">while let </span><span class="prelude-val">Some</span>(table_entry) = tables_iter.next() {
                 <span class="kw">let </span>id = u64::from_be_bytes(table_entry.value().try_into().unwrap());
                 <span class="comment">// Copy the table entry
@@ -338,7 +384,12 @@
                     table_entry.value(),
                 );
                 <span class="comment">// Copy the contents of the table
-                </span><span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(<span class="self">self</span>.get_root_page(), id, .., <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
+                </span><span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::&lt;RangeFull, [u8]&gt;::new(
+                    <span class="self">self</span>.get_root_page(),
+                    id,
+                    ..,
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.mem,
+                );
                 <span class="kw">while let </span><span class="prelude-val">Some</span>(x) = iter.next() {
                     <span class="kw">if </span>table_id != x.table_id() || !entries.contains_key(x.key()) {
                         builder.add(x.table_id(), x.key(), x.value());
@@ -349,7 +400,7 @@
                 builder.add(table_id, <span class="kw-2">&amp;</span>key, <span class="kw-2">&amp;</span>value);
             }
 
-            <span class="kw">let </span>new_root = builder.build().to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem);
+            <span class="kw">let </span>new_root = builder.build::&lt;K&gt;().to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.mem);
             <span class="self">self</span>.set_root_page(<span class="prelude-val">Some</span>(new_root));
         }
         <span class="prelude-val">Ok</span>(())
@@ -357,7 +408,7 @@
 
     <span class="doccomment">/// Get the number of entries
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>, table: u64, root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;usize, Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::new(
+        <span class="kw">let </span><span class="kw-2">mut </span>iter = BinarytreeRangeIter::&lt;RangeFull, [u8]&gt;::new(
             root_page.map(|p| <span class="self">self</span>.mem.get_page(p)),
             table,
             ..,
@@ -409,26 +460,29 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         table_id: u64,
         key: <span class="kw-2">&amp;</span>[u8],
         root_page_number: <span class="prelude-ty">Option</span>&lt;u64&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AccessGuard&gt;, Error&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(root_page) = root_page_number.map(|p| <span class="self">self</span>.mem.get_page(p)) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>((page, offset, len)) = lookup_in_raw(root_page, table_id, key, <span class="kw-2">&amp;</span><span class="self">self</span>.mem) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((page, offset, len)) =
+                lookup_in_raw::&lt;K&gt;(root_page, table_id, key, <span class="kw-2">&amp;</span><span class="self">self</span>.mem)
+            {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(AccessGuard::PageBacked(page, offset, len)));
             }
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_range&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt;(
+    <span class="comment">// Create an iterator over the given range
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_range&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;, K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
         table_id: u64,
         range: T,
         root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T&gt;, Error&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T, K&gt;, Error&gt; {
         <span class="prelude-val">Ok</span>(BinarytreeRangeIter::new(
             root_page.map(|p| <span class="self">self</span>.mem.get_page(p)),
             table_id,
@@ -436,12 +490,12 @@
             <span class="kw-2">&amp;</span><span class="self">self</span>.mem,
         ))
     }
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_range_reversed&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt;(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_range_reversed&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;, K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
         table_id: u64,
         range: T,
         root_page: <span class="prelude-ty">Option</span>&lt;u64&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T&gt;, Error&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;BinarytreeRangeIter&lt;T, K&gt;, Error&gt; {
         <span class="prelude-val">Ok</span>(BinarytreeRangeIter::new_reversed(
             root_page.map(|p| <span class="self">self</span>.mem.get_page(p)),
             table_id,
@@ -451,10 +505,14 @@
     }
 
     <span class="comment">// Returns a boolean indicating if an entry was removed
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove(<span class="kw-2">&amp;</span><span class="self">self</span>, table_id: u64, key: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        table_id: u64,
+        key: <span class="kw-2">&amp;</span>[u8],
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(root_page) = <span class="self">self</span>.get_root_page() {
             <span class="kw">let </span>old_root = root_page.get_page_number();
-            <span class="kw">let </span>new_root = tree_delete(root_page, table_id, key, <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
+            <span class="kw">let </span>new_root = tree_delete::&lt;K&gt;(root_page, table_id, key, <span class="kw-2">&amp;</span><span class="self">self</span>.mem);
             <span class="self">self</span>.set_root_page(new_root);
             <span class="kw">return </span><span class="prelude-val">Ok</span>(old_root == new_root.unwrap_or(<span class="number">0</span>));
         }

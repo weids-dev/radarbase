@@ -381,26 +381,87 @@
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use </span><span class="kw">crate</span>::storage::Storage;
 <span class="kw">use </span><span class="kw">crate</span>::transactions::WriteTransaction;
+<span class="kw">use </span><span class="kw">crate</span>::types::RadbKey;
 <span class="kw">use </span><span class="kw">crate</span>::ReadOnlyTransaction;
+<span class="kw">use </span>std::marker::PhantomData;
 
-<span class="kw">pub struct </span>Table&lt;<span class="lifetime">&#39;mmap</span>&gt; {
+<span class="kw">pub struct </span>Table&lt;<span class="lifetime">&#39;mmap</span>, K: RadbKey + <span class="question-mark">?</span>Sized&gt; {
     storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage,
     table_id: u64,
+    _key_type: PhantomData&lt;K&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;mmap</span>&gt; Table&lt;<span class="lifetime">&#39;mmap</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(table_id: u64, storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage) -&gt; <span class="prelude-ty">Result</span>&lt;Table&lt;<span class="lifetime">&#39;mmap</span>&gt;, Error&gt; {
-        <span class="prelude-val">Ok</span>(Table { storage, table_id })
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;mmap</span>, K: RadbKey + <span class="question-mark">?</span>Sized&gt; Table&lt;<span class="lifetime">&#39;mmap</span>, K&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(table_id: u64, storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;mmap </span>Storage) -&gt; <span class="prelude-ty">Result</span>&lt;Table&lt;<span class="lifetime">&#39;mmap</span>, K&gt;, Error&gt; {
+        <span class="prelude-val">Ok</span>(Table {
+            storage,
+            table_id,
+            _key_type: Default::default(),
+        })
     }
 
-    <span class="kw">pub fn </span>begin_write(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;WriteTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt;, Error&gt; {
+    <span class="kw">pub fn </span>begin_write(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;WriteTransaction&lt;<span class="lifetime">&#39;mmap</span>, K&gt;, Error&gt; {
         <span class="prelude-val">Ok</span>(WriteTransaction::new(<span class="self">self</span>.table_id, <span class="self">self</span>.storage))
     }
 
-    <span class="kw">pub fn </span>read_transaction(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>&gt;, Error&gt; {
+    <span class="kw">pub fn </span>read_transaction(<span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ReadOnlyTransaction&lt;<span class="lifetime">&#39;mmap</span>, K&gt;, Error&gt; {
         <span class="prelude-val">Ok</span>(ReadOnlyTransaction::new(<span class="self">self</span>.table_id, <span class="self">self</span>.storage))
     }
 }
@@ -408,14 +469,16 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span><span class="kw">crate</span>::binarytree::BinarytreeEntry;
-    <span class="kw">use </span><span class="kw">crate</span>::Database;
+    <span class="kw">use </span><span class="kw">crate</span>::types::{RadbKey, RefLifetime, WithLifetime};
+    <span class="kw">use crate</span>::{Database, Table};
+    <span class="kw">use </span>std::cmp::Ordering;
     <span class="kw">use </span>tempfile::NamedTempFile;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>len() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
         write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>).unwrap();
         write_txn.insert(<span class="string">b&quot;hello2&quot;</span>, <span class="string">b&quot;world2&quot;</span>).unwrap();
@@ -429,8 +492,8 @@
     </span><span class="kw">fn </span>multiple_tables() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;1&quot;</span>).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>table2 = db.open_table(<span class="string">b&quot;2&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;1&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table2: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;2&quot;</span>).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
         write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>).unwrap();
@@ -454,7 +517,7 @@
     </span><span class="kw">fn </span>is_empty() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
         <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
         <span class="macro">assert!</span>(read_txn.is_empty().unwrap());
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
@@ -468,7 +531,7 @@
     </span><span class="kw">fn </span>abort() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
         <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
         <span class="macro">assert!</span>(read_txn.is_empty().unwrap());
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
@@ -489,10 +552,31 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="kw">fn </span>insert_overwrite() {
+        <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+        <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
+        write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>).unwrap();
+        write_txn.commit().unwrap();
+        <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
+        <span class="macro">assert_eq!</span>(<span class="string">b&quot;world&quot;</span>, read_txn.get(<span class="string">b&quot;hello&quot;</span>).unwrap().unwrap().as_ref());
+
+        <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
+        write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;replaced&quot;</span>).unwrap();
+        write_txn.commit().unwrap();
+        <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
+        <span class="macro">assert_eq!</span>(
+            <span class="string">b&quot;replaced&quot;</span>,
+            read_txn.get(<span class="string">b&quot;hello&quot;</span>).unwrap().unwrap().as_ref()
+        );
+    }
+
+    <span class="attr">#[test]
     </span><span class="kw">fn </span>insert_reserve() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
         <span class="kw">let </span>value = <span class="string">b&quot;world&quot;</span>;
         <span class="kw">let </span>reserved = write_txn.insert_reserve(<span class="string">b&quot;hello&quot;</span>, value.len()).unwrap();
@@ -506,7 +590,7 @@
     </span><span class="kw">fn </span>delete() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
         write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>).unwrap();
@@ -520,8 +604,9 @@
         write_txn.remove(<span class="string">b&quot;hello&quot;</span>).unwrap();
         write_txn.commit().unwrap();
 
-        <span class="kw">let </span>read_txn2 = table.read_transaction().unwrap();
-        <span class="macro">assert!</span>(read_txn2.get(<span class="string">b&quot;hello&quot;</span>).unwrap().is_none());
+        <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
+        <span class="macro">assert!</span>(read_txn.get(<span class="string">b&quot;hello&quot;</span>).unwrap().is_none());
+        <span class="macro">assert_eq!</span>(read_txn.len().unwrap(), <span class="number">1</span>);
     }
 
     <span class="attr">#[test]
@@ -536,7 +621,7 @@
 
         </span><span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
         write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>).unwrap();
@@ -559,7 +644,7 @@
         // the version that was current when they started.
         </span><span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
 
         <span class="comment">// first write transaction
         </span><span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
@@ -601,7 +686,7 @@
     </span><span class="kw">fn </span>read_isolation2() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
 
         <span class="comment">// write transaction 1
         </span><span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
@@ -648,7 +733,7 @@
         // TODO: Support read isolation in updating
         </span><span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
 
         <span class="comment">// first write transaction - create complex tree
         </span><span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
@@ -692,31 +777,10 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>insert_overwrite() {
-        <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
-        <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
-        write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>).unwrap();
-        write_txn.commit().unwrap();
-        <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
-        <span class="macro">assert_eq!</span>(<span class="string">b&quot;world&quot;</span>, read_txn.get(<span class="string">b&quot;hello&quot;</span>).unwrap().unwrap().as_ref());
-
-        <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
-        write_txn.insert(<span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;replaced&quot;</span>).unwrap();
-        write_txn.commit().unwrap();
-        <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
-        <span class="macro">assert_eq!</span>(
-            <span class="string">b&quot;replaced&quot;</span>,
-            read_txn.get(<span class="string">b&quot;hello&quot;</span>).unwrap().unwrap().as_ref()
-        );
-    }
-
-    <span class="attr">#[test]
     </span><span class="kw">fn </span>range_query() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">10u8 </span>{
@@ -742,7 +806,7 @@
     </span><span class="kw">fn </span>range_query_reversed() {
         <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
-        <span class="kw">let </span><span class="kw-2">mut </span>table = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;[u8]&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">10u8 </span>{
@@ -758,6 +822,50 @@
             .unwrap();
         <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">3</span>..<span class="number">7u8</span>).rev() {
             <span class="kw">let </span>entry = iter.next().unwrap();
+            <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>[i], entry.key());
+            <span class="macro">assert_eq!</span>(<span class="string">b&quot;value&quot;</span>, entry.value());
+        }
+        <span class="macro">assert!</span>(iter.next().is_none());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>custom_ordering() {
+        <span class="kw">struct </span>ReverseKey(Vec&lt;u8&gt;);
+        <span class="kw">impl </span>RadbKey <span class="kw">for </span>ReverseKey {
+            <span class="kw">type </span>View = RefLifetime&lt;[u8]&gt;;
+
+            <span class="kw">fn </span>from_bytes(data: <span class="kw-2">&amp;</span>[u8]) -&gt; &lt;<span class="self">Self</span>::View <span class="kw">as </span>WithLifetime&gt;::Out {
+                data
+            }
+
+            <span class="kw">fn </span>as_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+                <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0
+            </span>}
+
+            <span class="kw">fn </span>compare(data1: <span class="kw-2">&amp;</span>[u8], data2: <span class="kw-2">&amp;</span>[u8]) -&gt; Ordering {
+                data2.cmp(data1)
+            }
+        }
+
+        <span class="kw">let </span>tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+        <span class="kw">let </span>db = <span class="kw">unsafe </span>{ Database::open(tmpfile.path()).unwrap() };
+        <span class="kw">let </span><span class="kw-2">mut </span>table: Table&lt;ReverseKey&gt; = db.open_table(<span class="string">b&quot;x&quot;</span>).unwrap();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>write_txn = table.begin_write().unwrap();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">10u8 </span>{
+            <span class="kw">let </span>key = <span class="macro">vec!</span>[i];
+            write_txn.insert(<span class="kw-2">&amp;</span>ReverseKey(key), <span class="string">b&quot;value&quot;</span>).unwrap();
+        }
+        write_txn.commit().unwrap();
+        <span class="kw">let </span>read_txn = table.read_transaction().unwrap();
+        <span class="kw">let </span>start = <span class="macro">vec!</span>[<span class="number">7u8</span>]; <span class="comment">// ReverseKey is used, so 7 &lt; 3
+        </span><span class="kw">let </span>end = <span class="macro">vec!</span>[<span class="number">3u8</span>];
+        <span class="kw">let </span><span class="kw-2">mut </span>iter = read_txn
+            .get_range(start.as_slice()..=end.as_slice())
+            .unwrap();
+        <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">3</span>..=<span class="number">7u8</span>).rev() {
+            <span class="kw">let </span>entry = iter.next().unwrap();
+            <span class="macro">dbg!</span>(entry.table_id(), entry.key());
             <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>[i], entry.key());
             <span class="macro">assert_eq!</span>(<span class="string">b&quot;value&quot;</span>, entry.value());
         }

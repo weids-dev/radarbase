@@ -984,14 +984,82 @@
 <a href="#984" id="984">984</a>
 <a href="#985" id="985">985</a>
 <a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::binarytree::Node::{Internal, Leaf};
 <span class="kw">use </span><span class="kw">crate</span>::binarytree::RangeIterState::{
     InitialState, InternalLeft, InternalRight, LeafLeft, LeafRight,
 };
 <span class="kw">use </span><span class="kw">crate</span>::page_manager::{Page, PageManager, PageMut};
+<span class="kw">use </span><span class="kw">crate</span>::types::RadbKey;
 <span class="kw">use </span>std::cell::Cell;
 <span class="kw">use </span>std::cmp::Ordering;
 <span class="kw">use </span>std::convert::TryInto;
+<span class="kw">use </span>std::marker::PhantomData;
 <span class="kw">use </span>std::ops::{Bound, RangeBounds};
 
 <span class="kw">const </span>LEAF: u8 = <span class="number">1</span>;
@@ -1026,27 +1094,31 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; RangeIterState&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>forward_next(<span class="self">self</span>, manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager) -&gt; <span class="prelude-ty">Option</span>&lt;RangeIterState&gt; {
-        <span class="comment">// InternalLeft -&gt; LeaefLeft -&gt; LeafRight -&gt; InternalRight
-        </span><span class="kw">match </span><span class="self">self </span>{
+        <span class="kw">match </span><span class="self">self </span>{
             RangeIterState::InitialState(root_page, ..) =&gt; <span class="kw">match </span>root_page.memory()[<span class="number">0</span>] {
-                LEAF =&gt; <span class="prelude-val">Some</span>(LeafLeft {
+                <span class="comment">// initial state, if it is the leaf node, then we assign it to left leaf
+                </span>LEAF =&gt; <span class="prelude-val">Some</span>(LeafLeft {
                     page: root_page,
                     parent: <span class="prelude-val">None</span>,
                     reversed: <span class="bool-val">false</span>,
                 }),
-                INTERNAL =&gt; <span class="prelude-val">Some</span>(InternalLeft {
+
+                <span class="comment">// then the next one should be the internal left (at least we treat it like il)
+                </span>INTERNAL =&gt; <span class="prelude-val">Some</span>(InternalLeft {
                     page: root_page,
                     parent: <span class="prelude-val">None</span>,
                     reversed: <span class="bool-val">false</span>,
                 }),
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
             },
+
             RangeIterState::LeafLeft { page, parent, .. } =&gt; <span class="prelude-val">Some</span>(LeafRight {
                 page,
                 parent,
                 reversed: <span class="bool-val">false</span>,
             }),
             RangeIterState::LeafRight { parent, .. } =&gt; parent.map(|x| <span class="kw-2">*</span>x), <span class="comment">// back to parent
+
             </span>RangeIterState::InternalLeft { page, parent, .. } =&gt; {
                 <span class="kw">let </span>child = InternalAccessor::new(<span class="kw-2">&amp;</span>page).lte_page();
                 <span class="kw">let </span>child_page = manager.get_page(child);
@@ -1054,7 +1126,9 @@
                     LEAF =&gt; <span class="prelude-val">Some</span>(LeafLeft {
                         page: child_page,
                         parent: <span class="prelude-val">Some</span>(Box::new(InternalRight {
-                            page,
+                            <span class="comment">// key point, we need to reset the parent to the right internal node
+                            // so that we can move to the right leaf page (gt_page)
+                            </span>page,
                             parent,
                             reversed: <span class="bool-val">false</span>,
                         })),
@@ -1063,7 +1137,8 @@
                     INTERNAL =&gt; <span class="prelude-val">Some</span>(InternalLeft {
                         page: child_page,
                         parent: <span class="prelude-val">Some</span>(Box::new(InternalRight {
-                            page,
+                            <span class="comment">// understand this is the same as above
+                            </span>page,
                             parent,
                             reversed: <span class="bool-val">false</span>,
                         })),
@@ -1072,6 +1147,7 @@
                     <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
                 }
             }
+
             RangeIterState::InternalRight { page, parent, .. } =&gt; {
                 <span class="kw">let </span>child = InternalAccessor::new(<span class="kw-2">&amp;</span>page).gt_page();
                 <span class="kw">let </span>child_page = manager.get_page(child);
@@ -1093,8 +1169,7 @@
     }
 
     <span class="kw">fn </span>backward_next(<span class="self">self</span>, manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager) -&gt; <span class="prelude-ty">Option</span>&lt;RangeIterState&gt; {
-        <span class="comment">// InternalRight -&gt; LeafRight -&gt; LeafLeft -&gt; InternalLeft
-        </span><span class="kw">match </span><span class="self">self </span>{
+        <span class="kw">match </span><span class="self">self </span>{
             RangeIterState::InitialState(root_page, ..) =&gt; <span class="kw">match </span>root_page.memory()[<span class="number">0</span>] {
                 LEAF =&gt; <span class="prelude-val">Some</span>(LeafRight {
                     page: root_page,
@@ -1159,7 +1234,8 @@
         }
     }
 
-    <span class="kw">fn </span>next(<span class="self">self</span>, manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager) -&gt; <span class="prelude-ty">Option</span>&lt;RangeIterState&gt; {
+    <span class="comment">// this next function will only return the next state
+    </span><span class="kw">fn </span>next(<span class="self">self</span>, manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager) -&gt; <span class="prelude-ty">Option</span>&lt;RangeIterState&gt; {
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self </span>{
             InitialState(<span class="kw">_</span>, reversed) =&gt; {
                 <span class="kw">if </span><span class="kw-2">*</span>reversed {
@@ -1210,15 +1286,17 @@
     }
 }
 
-<span class="kw">pub struct </span>BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt; {
+<span class="comment">// TODO: T should be a RangeBound&lt;&amp;&#39;a K&gt;
+</span><span class="kw">pub struct </span>BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;, K: RadbKey + <span class="question-mark">?</span>Sized&gt; {
     last: <span class="prelude-ty">Option</span>&lt;RangeIterState&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
     table_id: u64,
     query_range: T,
     reversed: bool,
     manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
+    _key_type: PhantomData&lt;K&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;&gt; BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;, K: RadbKey + <span class="question-mark">?</span>Sized&gt; BinarytreeRangeIter&lt;<span class="lifetime">&#39;a</span>, T, K&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         root_page: <span class="prelude-ty">Option</span>&lt;Page&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
         table_id: u64,
@@ -1226,11 +1304,12 @@
         manager: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PageManager,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            last: root_page.map(|p| InitialState(p, <span class="bool-val">false</span>)),
-            table_id,
+            last: root_page.map(|p| InitialState(p, <span class="bool-val">false</span>)), <span class="comment">// key point, initial state
+            </span>table_id,
             query_range,
             reversed: <span class="bool-val">false</span>,
             manager,
+            _key_type: Default::default(),
         }
     }
 
@@ -1246,19 +1325,22 @@
             query_range,
             reversed: <span class="bool-val">true</span>,
             manager,
+            _key_type: Default::default(),
         }
     }
 
     <span class="comment">// TODO: we need generic-associated-types to implement Iterator
+    // This function main focus is to check if the next entry is in the range
     </span><span class="kw">pub fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;EntryAccessor&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>state) = <span class="self">self</span>.last.take() {
             <span class="kw">loop </span>{
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(new_state) = state.next(<span class="self">self</span>.manager) {
+                <span class="comment">// this loop ensures that it will only return the leaf node, which will store the entry
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(new_state) = state.next(<span class="self">self</span>.manager) {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = new_state.get_entry() {
-                        <span class="comment">// If the new state is a leaf, check if it&#39;s within the query range
+                        <span class="comment">// it is a leaf node, check if it is in the range
                         // TODO: optimize. This is very inefficient to retrieve and then ignore the values
                         </span><span class="kw">if </span><span class="self">self</span>.table_id == entry.table_id()
-                            &amp;&amp; <span class="self">self</span>.query_range.contains(<span class="kw-2">&amp;</span>entry.key())
+                            &amp;&amp; bound_contains_key::&lt;T, K&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>.query_range, entry.key())
                         {
                             <span class="self">self</span>.last = <span class="prelude-val">Some</span>(new_state);
                             <span class="kw">return </span><span class="self">self</span>.last.as_ref().map(|s| s.get_entry().unwrap());
@@ -1266,26 +1348,26 @@
                             <span class="attr">#[allow(clippy::collapsible_else_if)]
                             </span><span class="kw">if </span><span class="self">self</span>.reversed {
                                 <span class="kw">if let </span>Bound::Included(start) = <span class="self">self</span>.query_range.start_bound() {
-                                    <span class="kw">if </span>entry.table_and_key() &lt; (<span class="self">self</span>.table_id, <span class="kw-2">*</span>start) {
+                                    <span class="kw">if </span>entry.compare::&lt;K&gt;(<span class="self">self</span>.table_id, <span class="kw-2">*</span>start).is_lt() {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
                                 } <span class="kw">else if let </span>Bound::Excluded(start) =
                                     <span class="self">self</span>.query_range.start_bound()
                                 {
-                                    <span class="kw">if </span>entry.table_and_key() &lt;= (<span class="self">self</span>.table_id, <span class="kw-2">*</span>start) {
+                                    <span class="kw">if </span>entry.compare::&lt;K&gt;(<span class="self">self</span>.table_id, <span class="kw-2">*</span>start).is_le() {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
                                 }
                             } <span class="kw">else </span>{
                                 <span class="kw">if let </span>Bound::Included(end) = <span class="self">self</span>.query_range.end_bound() {
-                                    <span class="kw">if </span>entry.table_and_key() &gt; (<span class="self">self</span>.table_id, <span class="kw-2">*</span>end) {
+                                    <span class="kw">if </span>entry.compare::&lt;K&gt;(<span class="self">self</span>.table_id, <span class="kw-2">*</span>end).is_gt() {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
                                 } <span class="kw">else if let </span>Bound::Excluded(end) = <span class="self">self</span>.query_range.end_bound() {
-                                    <span class="kw">if </span>entry.table_and_key() &gt;= (<span class="self">self</span>.table_id, <span class="kw-2">*</span>end) {
+                                    <span class="kw">if </span>entry.compare::&lt;K&gt;(<span class="self">self</span>.table_id, <span class="kw-2">*</span>end).is_ge() {
                                         <span class="self">self</span>.last = <span class="prelude-val">None</span>;
                                         <span class="kw">return </span><span class="prelude-val">None</span>;
                                     }
@@ -1294,10 +1376,12 @@
                             state = new_state;
                         }
                     } <span class="kw">else </span>{
-                        state = new_state;
+                        <span class="comment">// otherwise, it is an internal node, just continue
+                        </span>state = new_state;
                     }
                 } <span class="kw">else </span>{
-                    <span class="self">self</span>.last = <span class="prelude-val">None</span>;
+                    <span class="comment">// we have reached the end of the tree
+                    </span><span class="self">self</span>.last = <span class="prelude-val">None</span>;
                     <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
             }
@@ -1310,6 +1394,44 @@
     <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8];
     <span class="kw">fn </span>value(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8];
 }
+
+<span class="kw">fn </span>cmp_keys&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(table1: u64, key1: <span class="kw-2">&amp;</span>[u8], table2: u64, key2: <span class="kw-2">&amp;</span>[u8]) -&gt; Ordering {
+    <span class="kw">match </span>table1.cmp(<span class="kw-2">&amp;</span>table2) {
+        <span class="comment">// Why do we need to compare table ids????
+        // two keys is invalid to be compared if they are from different tables???
+        // TODO: check this
+        </span>Ordering::Less =&gt; Ordering::Less,
+        Ordering::Equal =&gt; K::compare(key1, key2),
+        Ordering::Greater =&gt; Ordering::Greater,
+    }
+}
+
+<span class="kw">fn </span>bound_contains_key&lt;<span class="lifetime">&#39;a</span>, T: RangeBounds&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt;, K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
+    range: <span class="kw-2">&amp;</span>T,
+    key: <span class="kw-2">&amp;</span>[u8],
+) -&gt; bool {
+    <span class="comment">// helper function to check if a key is within a range
+    </span><span class="kw">if let </span>Bound::Included(start) = range.start_bound() {
+        <span class="kw">if </span>K::compare(key, <span class="kw-2">*</span>start).is_lt() {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+    } <span class="kw">else if let </span>Bound::Excluded(start) = range.start_bound() {
+        <span class="kw">if </span>K::compare(key, <span class="kw-2">*</span>start).is_le() {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+    }
+    <span class="kw">if let </span>Bound::Included(end) = range.end_bound() {
+        <span class="kw">if </span>K::compare(key, <span class="kw-2">*</span>end).is_gt() {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+    } <span class="kw">else if let </span>Bound::Excluded(end) = range.end_bound() {
+        <span class="kw">if </span>K::compare(key, <span class="kw-2">*</span>end).is_ge() {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+    }
+
+    <span class="bool-val">true
+</span>}
 
 <span class="comment">// Provides a simple zero-copy way to access entries
 //
@@ -1354,8 +1476,8 @@
         <span class="number">16 </span>+ <span class="self">self</span>.key_len() + <span class="number">8 </span>+ <span class="self">self</span>.value_len()
     }
 
-    <span class="kw">fn </span>table_and_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (u64, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]) {
-        (<span class="self">self</span>.table_id(), <span class="self">self</span>.key())
+    <span class="kw">fn </span>compare&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, table: u64, key: <span class="kw-2">&amp;</span>[u8]) -&gt; Ordering {
+        cmp_keys::&lt;K&gt;(<span class="self">self</span>.table_id(), <span class="self">self</span>.key(), table, key)
     }
 }
 
@@ -1466,7 +1588,7 @@
     }
 }
 
-<span class="comment">// Provides a simple zero-copy way to access a leaf page
+<span class="comment">// Provides a simple zero-copy way to access an internal page
 //
 // Entry format is:
 // * (1 byte) type: 2 = INTERNAL
@@ -1490,10 +1612,6 @@
 
     <span class="kw">fn </span>table_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
         u64::from_be_bytes(<span class="self">self</span>.page.memory()[<span class="number">9</span>..<span class="number">17</span>].try_into().unwrap())
-    }
-
-    <span class="kw">fn </span>table_and_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (u64, <span class="kw-2">&amp;</span>[u8]) {
-        (<span class="self">self</span>.table_id(), <span class="self">self</span>.key())
     }
 
     <span class="kw">fn </span>key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
@@ -1546,7 +1664,7 @@
 
 <span class="comment">// Returns the page number of the sub-tree with this key deleted, or None if the sub-tree is empty.
 // If key is not found, guaranteed not to modify the tree
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tree_delete&lt;<span class="lifetime">&#39;a</span>&gt;(
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tree_delete&lt;<span class="lifetime">&#39;a</span>, K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
     page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
     table: u64,
     key: <span class="kw-2">&amp;</span>[u8],
@@ -1558,14 +1676,14 @@
             <span class="kw">let </span>accessor = LeafAccessor::new(<span class="kw-2">&amp;</span>page);
             <span class="attr">#[allow(clippy::collapsible_else_if)]
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(greater) = accessor.greater() {
-                <span class="kw">if </span>(table, key) != accessor.lesser().table_and_key()
-                    &amp;&amp; (table, key) != greater.table_and_key()
+                <span class="kw">if </span>accessor.lesser().compare::&lt;K&gt;(table, key).is_ne()
+                    &amp;&amp; greater.compare::&lt;K&gt;(table, key).is_ne()
                 {
                     <span class="comment">// Not found
                     </span><span class="kw">return </span><span class="prelude-val">Some</span>(page.get_page_number());
                 }
                 <span class="comment">// Found, create a new leaf with the other key
-                </span><span class="kw">let </span>new_leaf = <span class="kw">if </span>(table, key) == accessor.lesser().table_and_key() {
+                </span><span class="kw">let </span>new_leaf = <span class="kw">if </span>accessor.lesser().compare::&lt;K&gt;(table, key).is_eq() {
                     Leaf(
                         (
                             greater.table_id(),
@@ -1589,7 +1707,7 @@
                 </span>drop(page);
                 <span class="prelude-val">Some</span>(new_leaf.to_bytes(manager))
             } <span class="kw">else </span>{
-                <span class="kw">if </span>(table, key) == accessor.lesser().table_and_key() {
+                <span class="kw">if </span>accessor.lesser().compare::&lt;K&gt;(table, key).is_eq() {
                     <span class="comment">// Deleted the entire left
                     </span><span class="prelude-val">None
                 </span>} <span class="kw">else </span>{
@@ -1611,9 +1729,9 @@
             <span class="comment">// TODO: shouldn&#39;t need to drop this, but we can&#39;t allocate when there are pages in flight
             </span>drop(page);
             <span class="attr">#[allow(clippy::collapsible_else_if)]
-            </span><span class="kw">if </span>(table, key) &lt;= (our_table, our_key.as_slice()) {
+            </span><span class="kw">if </span>cmp_keys::&lt;K&gt;(table, key, our_table, our_key.as_slice()).is_le() {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(page_number) =
-                    tree_delete(manager.get_page(left_page), table, key, manager)
+                    tree_delete::&lt;K&gt;(manager.get_page(left_page), table, key, manager)
                 {
                     left_page = page_number;
                 } <span class="kw">else </span>{
@@ -1622,7 +1740,7 @@
                 }
             } <span class="kw">else </span>{
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(page_number) =
-                    tree_delete(manager.get_page(right_page), table, key, manager)
+                    tree_delete::&lt;K&gt;(manager.get_page(right_page), table, key, manager)
                 {
                     right_page = page_number;
                 } <span class="kw">else </span>{
@@ -1652,7 +1770,7 @@
 }
 
 <span class="comment">// Returns the page number of the sub-tree into which the key was inserted
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tree_insert&lt;<span class="lifetime">&#39;a</span>&gt;(
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>tree_insert&lt;<span class="lifetime">&#39;a</span>, K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
     page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
     table: u64,
     key: <span class="kw-2">&amp;</span>[u8],
@@ -1670,7 +1788,7 @@
             // e.g. when we insert a second leaf adjacent without modifying this one
             </span><span class="kw">let </span><span class="kw-2">mut </span>builder = BinarytreeBuilder::new();
             builder.add(table, key, value);
-            <span class="kw">if </span>(table, key) != accessor.lesser().table_and_key() {
+            <span class="kw">if </span>accessor.lesser().compare::&lt;K&gt;(table, key).is_ne() {
                 builder.add(
                     accessor.lesser().table_id(),
                     accessor.lesser().key(),
@@ -1678,14 +1796,14 @@
                 );
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = accessor.greater() {
-                <span class="kw">if </span>(table, key) != entry.table_and_key() {
+                <span class="kw">if </span>entry.compare::&lt;K&gt;(table, key).is_ne() {
                     builder.add(entry.table_id(), entry.key(), entry.value());
                 }
             }
             <span class="comment">// TODO: shouldn&#39;t need to drop this, but we can&#39;t allocate when there are pages in flight
             // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             </span>drop(page);
-            builder.build().to_bytes(manager)
+            builder.build::&lt;K&gt;().to_bytes(manager)
         }
         INTERNAL =&gt; {
             <span class="kw">let </span>accessor = InternalAccessor::new(<span class="kw-2">&amp;</span>page);
@@ -1697,9 +1815,11 @@
             // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             </span>drop(page);
             <span class="kw">if </span>(table, key) &lt;= (our_table, our_key.as_slice()) {
-                left_page = tree_insert(manager.get_page(left_page), table, key, value, manager);
+                left_page =
+                    tree_insert::&lt;K&gt;(manager.get_page(left_page), table, key, value, manager);
             } <span class="kw">else </span>{
-                right_page = tree_insert(manager.get_page(right_page), table, key, value, manager);
+                right_page =
+                    tree_insert::&lt;K&gt;(manager.get_page(right_page), table, key, value, manager);
             }
 
             <span class="comment">// create the new root node
@@ -1749,7 +1869,7 @@
 ///
 /// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a
 /// recognized node type (1 for leaf node or 2 for internal node).
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_in_raw&lt;<span class="lifetime">&#39;a</span>&gt;(
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_in_raw&lt;<span class="lifetime">&#39;a</span>, K: RadbKey + <span class="question-mark">?</span>Sized&gt;(
     page: Page&lt;<span class="lifetime">&#39;a</span>&gt;,
     table: u64,
     query: <span class="kw-2">&amp;</span>[u8],
@@ -1760,7 +1880,12 @@
         LEAF =&gt; {
             <span class="comment">// Leaf node
             </span><span class="kw">let </span>accessor = LeafAccessor::new(<span class="kw-2">&amp;</span>page);
-            <span class="kw">match </span>(table, query).cmp(<span class="kw-2">&amp;</span>accessor.lesser().table_and_key()) {
+            <span class="kw">match </span>cmp_keys::&lt;K&gt;(
+                table,
+                query,
+                accessor.lesser().table_id(),
+                accessor.lesser().key(),
+            ) {
                 Ordering::Less =&gt; <span class="prelude-val">None</span>,
                 Ordering::Equal =&gt; {
                     <span class="kw">let </span>offset = accessor.offset_of_lesser() + accessor.lesser().value_offset();
@@ -1769,7 +1894,7 @@
                 }
                 Ordering::Greater =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = accessor.greater() {
-                        <span class="kw">if </span>(table, query) == entry.table_and_key() {
+                        <span class="kw">if </span>entry.compare::&lt;K&gt;(table, query).is_eq() {
                             <span class="kw">let </span>offset = accessor.offset_of_greater() + entry.value_offset();
                             <span class="kw">let </span>value_len = entry.value().len();
                             <span class="prelude-val">Some</span>((page, offset, value_len))
@@ -1786,10 +1911,10 @@
             <span class="kw">let </span>accessor = InternalAccessor::new(<span class="kw-2">&amp;</span>page);
             <span class="kw">let </span>left_page = accessor.lte_page();
             <span class="kw">let </span>right_page = accessor.gt_page();
-            <span class="kw">if </span>(table, query) &lt;= accessor.table_and_key() {
-                lookup_in_raw(manager.get_page(left_page), table, query, manager)
+            <span class="kw">if </span>cmp_keys::&lt;K&gt;(table, query, accessor.table_id(), accessor.key()).is_le() {
+                lookup_in_raw::&lt;K&gt;(manager.get_page(left_page), table, query, manager)
             } <span class="kw">else </span>{
-                lookup_in_raw(manager.get_page(right_page), table, query, manager)
+                lookup_in_raw::&lt;K&gt;(manager.get_page(right_page), table, query, manager)
             }
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -1798,9 +1923,9 @@
 
 <span class="attr">#[derive(Eq, PartialEq, Debug)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Node {
-    Leaf((u64, Vec&lt;u8&gt;, Vec&lt;u8&gt;), <span class="prelude-ty">Option</span>&lt;(u64, Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;),
-    Internal(Box&lt;Node&gt;, u64, Vec&lt;u8&gt;, Box&lt;Node&gt;),
-}
+    Leaf((u64, Vec&lt;u8&gt;, Vec&lt;u8&gt;), <span class="prelude-ty">Option</span>&lt;(u64, Vec&lt;u8&gt;, Vec&lt;u8&gt;)&gt;), <span class="comment">// (table, key, value), (table, key, value)
+    </span>Internal(Box&lt;Node&gt;, u64, Vec&lt;u8&gt;, Box&lt;Node&gt;),                   <span class="comment">// (left, table, key, right)
+</span>}
 
 <span class="kw">impl </span>Node {
     <span class="comment">// Returns the page number that the node was written to
@@ -1895,13 +2020,16 @@
     /// # Returns
     ///
     /// This function returns the root `Node` of the constructed tree.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Node {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Node {
         <span class="comment">// we want a balanced tree, so we sort the pairs by key
         </span><span class="macro">assert!</span>(!<span class="self">self</span>.pairs.is_empty());
-        <span class="self">self</span>.pairs.sort();
+        <span class="self">self</span>.pairs.sort_by(|(table1, key1, <span class="kw">_</span>), (table2, key2, <span class="kw">_</span>)| {
+            cmp_keys::&lt;K&gt;(<span class="kw-2">*</span>table1, key1, <span class="kw-2">*</span>table2, key2)
+        });
         <span class="kw">let </span><span class="kw-2">mut </span>leaves = <span class="macro">vec!</span>[];
 
-        <span class="kw">for </span>group <span class="kw">in </span><span class="self">self</span>.pairs.chunks(<span class="number">2</span>) {
+        <span class="comment">// create leaves from pairs of elements
+        </span><span class="kw">for </span>group <span class="kw">in </span><span class="self">self</span>.pairs.chunks(<span class="number">2</span>) {
             <span class="kw">let </span>leaf = <span class="kw">if </span>group.len() == <span class="number">1 </span>{
                 Leaf((group[<span class="number">0</span>].<span class="number">0</span>, group[<span class="number">0</span>].<span class="number">1</span>.to_vec(), group[<span class="number">0</span>].<span class="number">2</span>.to_vec()), <span class="prelude-val">None</span>)
             } <span class="kw">else </span>{
@@ -1922,11 +2050,15 @@
         <span class="kw">let </span><span class="kw-2">mut </span>bottom = leaves;
         <span class="kw">let </span>maybe_previous_node: Cell&lt;<span class="prelude-ty">Option</span>&lt;Node&gt;&gt; = Cell::new(<span class="prelude-val">None</span>);
 
-        <span class="kw">while </span>bottom.len() &gt; <span class="number">1 </span>{
+        <span class="comment">// build the tree bottom-up
+        </span><span class="kw">while </span>bottom.len() &gt; <span class="number">1 </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>internals = <span class="macro">vec!</span>[];
             <span class="kw">for </span>node <span class="kw">in </span>bottom.drain(..) {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(previous_node) = maybe_previous_node.take() {
-                    <span class="kw">let </span>(table, key) = previous_node.get_max_key();
+                <span class="comment">// state machine: if we have a previous node, create an internal node
+                // and reset the state, otherwise store the current node in the state
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(previous_node) = maybe_previous_node.take() {
+                    <span class="comment">// pick a key for the internal node
+                    </span><span class="kw">let </span>(table, key) = previous_node.get_max_key();
                     <span class="kw">let </span>internal = Internal(Box::new(previous_node), table, key, Box::new(node));
                     internals.push(internal)
                 } <span class="kw">else </span>{
@@ -1967,7 +2099,7 @@
         builder.add(<span class="number">1</span>, <span class="string">b&quot;hello3&quot;</span>, <span class="string">b&quot;world3&quot;</span>);
         builder.add(<span class="number">1</span>, <span class="string">b&quot;hello&quot;</span>, <span class="string">b&quot;world&quot;</span>);
 
-        <span class="macro">assert_eq!</span>(expected, builder.build());
+        <span class="macro">assert_eq!</span>(expected, builder.build::&lt;[u8]&gt;());
     }
 }
 </code></pre></div></section></main></body></html>

@@ -41,8 +41,10 @@
 <a href="#41" id="41">41</a>
 <a href="#42" id="42">42</a>
 <a href="#43" id="43">43</a>
+<a href="#44" id="44">44</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::storage::Storage;
 <span class="kw">use </span><span class="kw">crate</span>::table::Table;
+<span class="kw">use </span><span class="kw">crate</span>::types::RadbKey;
 <span class="kw">use </span><span class="kw">crate</span>::Error;
 
 <span class="kw">use </span>memmap2::MmapMut;
@@ -78,7 +80,7 @@
         <span class="prelude-val">Ok</span>(Database { storage })
     }
 
-    <span class="kw">pub fn </span>open_table(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;Table, Error&gt; {
+    <span class="kw">pub fn </span>open_table&lt;K: RadbKey + <span class="question-mark">?</span>Sized&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;Table&lt;K&gt;, Error&gt; {
         <span class="macro">assert!</span>(!name.is_empty());
         <span class="kw">let </span>id = <span class="self">self</span>.storage.get_or_create_table(name)<span class="question-mark">?</span>;
         Table::new(id, <span class="kw-2">&amp;</span><span class="self">self</span>.storage)
