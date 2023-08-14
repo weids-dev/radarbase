@@ -3,9 +3,11 @@ use crate::binarytree::RangeIterState::{
     InitialState, InternalLeft, InternalRight, LeafLeft, LeafRight,
 };
 use crate::page_manager::{Page, PageManager, PageMut};
+use crate::types::RadbKey;
 use std::cell::Cell;
 use std::cmp::Ordering;
 use std::convert::TryInto;
+use std::marker::PhantomData;
 use std::ops::{Bound, RangeBounds};
 
 const LEAF: u8 = 1;
@@ -40,14 +42,16 @@ enum RangeIterState<'a> {
 
 impl<'a> RangeIterState<'a> {
     fn forward_next(self, manager: &'a PageManager) -> Option<RangeIterState> {
-        // InternalLeft -> LeaefLeft -> LeafRight -> InternalRight
         match self {
             RangeIterState::InitialState(root_page, ..) => match root_page.memory()[0] {
+                // initial state, if it is the leaf node, then we assign it to left leaf
                 LEAF => Some(LeafLeft {
                     page: root_page,
                     parent: None,
                     reversed: false,
                 }),
+
+                // then the next one should be the internal left (at least we treat it like il)
                 INTERNAL => Some(InternalLeft {
                     page: root_page,
                     parent: None,
@@ -55,12 +59,14 @@ impl<'a> RangeIterState<'a> {
                 }),
                 _ => unreachable!(),
             },
+
             RangeIterState::LeafLeft { page, parent, .. } => Some(LeafRight {
                 page,
                 parent,
                 reversed: false,
             }),
             RangeIterState::LeafRight { parent, .. } => parent.map(|x| *x), // back to parent
+
             RangeIterState::InternalLeft { page, parent, .. } => {
                 let child = InternalAccessor::new(&page).lte_page();
                 let child_page = manager.get_page(child);
@@ -68,6 +74,8 @@ impl<'a> RangeIterState<'a> {
                     LEAF => Some(LeafLeft {
                         page: child_page,
                         parent: Some(Box::new(InternalRight {
+                            // key point, we need to reset the parent to the right internal node
+                            // so that we can move to the right leaf page (gt_page)
                             page,
                             parent,
                             reversed: false,
@@ -77,6 +85,7 @@ impl<'a> RangeIterState<'a> {
                     INTERNAL => Some(InternalLeft {
                         page: child_page,
                         parent: Some(Box::new(InternalRight {
+                            // understand this is the same as above
                             page,
                             parent,
                             reversed: false,
@@ -86,6 +95,7 @@ impl<'a> RangeIterState<'a> {
                     _ => unreachable!(),
                 }
             }
+
             RangeIterState::InternalRight { page, parent, .. } => {
                 let child = InternalAccessor::new(&page).gt_page();
                 let child_page = manager.get_page(child);
@@ -107,7 +117,6 @@ impl<'a> RangeIterState<'a> {
     }
 
     fn backward_next(self, manager: &'a PageManager) -> Option<RangeIterState> {
-        // InternalRight -> LeafRight -> LeafLeft -> InternalLeft
         match self {
             RangeIterState::InitialState(root_page, ..) => match root_page.memory()[0] {
                 LEAF => Some(LeafRight {
@@ -173,6 +182,7 @@ impl<'a> RangeIterState<'a> {
         }
     }
 
+    // this next function will only return the next state
     fn next(self, manager: &'a PageManager) -> Option<RangeIterState> {
         match &self {
             InitialState(_, reversed) => {
@@ -224,15 +234,17 @@ impl<'a> RangeIterState<'a> {
     }
 }
 
-pub struct BinarytreeRangeIter<'a, T: RangeBounds<&'a [u8]>> {
+// TODO: T should be a RangeBound<&'a K>
+pub struct BinarytreeRangeIter<'a, T: RangeBounds<&'a [u8]>, K: RadbKey + ?Sized> {
     last: Option<RangeIterState<'a>>,
     table_id: u64,
     query_range: T,
     reversed: bool,
     manager: &'a PageManager,
+    _key_type: PhantomData<K>,
 }
 
-impl<'a, T: RangeBounds<&'a [u8]>> BinarytreeRangeIter<'a, T> {
+impl<'a, T: RangeBounds<&'a [u8]>, K: RadbKey + ?Sized> BinarytreeRangeIter<'a, T, K> {
     pub(crate) fn new(
         root_page: Option<Page<'a>>,
         table_id: u64,
@@ -240,11 +252,12 @@ impl<'a, T: RangeBounds<&'a [u8]>> BinarytreeRangeIter<'a, T> {
         manager: &'a PageManager,
     ) -> Self {
         Self {
-            last: root_page.map(|p| InitialState(p, false)),
+            last: root_page.map(|p| InitialState(p, false)), // key point, initial state
             table_id,
             query_range,
             reversed: false,
             manager,
+            _key_type: Default::default(),
         }
     }
 
@@ -260,19 +273,22 @@ impl<'a, T: RangeBounds<&'a [u8]>> BinarytreeRangeIter<'a, T> {
             query_range,
             reversed: true,
             manager,
+            _key_type: Default::default(),
         }
     }
 
     // TODO: we need generic-associated-types to implement Iterator
+    // This function main focus is to check if the next entry is in the range
     pub fn next(&mut self) -> Option<EntryAccessor> {
         if let Some(mut state) = self.last.take() {
             loop {
+                // this loop ensures that it will only return the leaf node, which will store the entry
                 if let Some(new_state) = state.next(self.manager) {
                     if let Some(entry) = new_state.get_entry() {
-                        // If the new state is a leaf, check if it's within the query range
+                        // it is a leaf node, check if it is in the range
                         // TODO: optimize. This is very inefficient to retrieve and then ignore the values
                         if self.table_id == entry.table_id()
-                            && self.query_range.contains(&entry.key())
+                            && bound_contains_key::<T, K>(&self.query_range, entry.key())
                         {
                             self.last = Some(new_state);
                             return self.last.as_ref().map(|s| s.get_entry().unwrap());
@@ -280,26 +296,26 @@ impl<'a, T: RangeBounds<&'a [u8]>> BinarytreeRangeIter<'a, T> {
                             #[allow(clippy::collapsible_else_if)]
                             if self.reversed {
                                 if let Bound::Included(start) = self.query_range.start_bound() {
-                                    if entry.table_and_key() < (self.table_id, *start) {
+                                    if entry.compare::<K>(self.table_id, *start).is_lt() {
                                         self.last = None;
                                         return None;
                                     }
                                 } else if let Bound::Excluded(start) =
                                     self.query_range.start_bound()
                                 {
-                                    if entry.table_and_key() <= (self.table_id, *start) {
+                                    if entry.compare::<K>(self.table_id, *start).is_le() {
                                         self.last = None;
                                         return None;
                                     }
                                 }
                             } else {
                                 if let Bound::Included(end) = self.query_range.end_bound() {
-                                    if entry.table_and_key() > (self.table_id, *end) {
+                                    if entry.compare::<K>(self.table_id, *end).is_gt() {
                                         self.last = None;
                                         return None;
                                     }
                                 } else if let Bound::Excluded(end) = self.query_range.end_bound() {
-                                    if entry.table_and_key() >= (self.table_id, *end) {
+                                    if entry.compare::<K>(self.table_id, *end).is_ge() {
                                         self.last = None;
                                         return None;
                                     }
@@ -308,9 +324,11 @@ impl<'a, T: RangeBounds<&'a [u8]>> BinarytreeRangeIter<'a, T> {
                             state = new_state;
                         }
                     } else {
+                        // otherwise, it is an internal node, just continue
                         state = new_state;
                     }
                 } else {
+                    // we have reached the end of the tree
                     self.last = None;
                     return None;
                 }
@@ -323,6 +341,44 @@ impl<'a, T: RangeBounds<&'a [u8]>> BinarytreeRangeIter<'a, T> {
 pub trait BinarytreeEntry<'a: 'b, 'b> {
     fn key(&'b self) -> &'a [u8];
     fn value(&'b self) -> &'a [u8];
+}
+
+fn cmp_keys<K: RadbKey + ?Sized>(table1: u64, key1: &[u8], table2: u64, key2: &[u8]) -> Ordering {
+    match table1.cmp(&table2) {
+        // Why do we need to compare table ids????
+        // two keys is invalid to be compared if they are from different tables???
+        // TODO: check this
+        Ordering::Less => Ordering::Less,
+        Ordering::Equal => K::compare(key1, key2),
+        Ordering::Greater => Ordering::Greater,
+    }
+}
+
+fn bound_contains_key<'a, T: RangeBounds<&'a [u8]>, K: RadbKey + ?Sized>(
+    range: &T,
+    key: &[u8],
+) -> bool {
+    // helper function to check if a key is within a range
+    if let Bound::Included(start) = range.start_bound() {
+        if K::compare(key, *start).is_lt() {
+            return false;
+        }
+    } else if let Bound::Excluded(start) = range.start_bound() {
+        if K::compare(key, *start).is_le() {
+            return false;
+        }
+    }
+    if let Bound::Included(end) = range.end_bound() {
+        if K::compare(key, *end).is_gt() {
+            return false;
+        }
+    } else if let Bound::Excluded(end) = range.end_bound() {
+        if K::compare(key, *end).is_ge() {
+            return false;
+        }
+    }
+
+    true
 }
 
 // Provides a simple zero-copy way to access entries
@@ -368,8 +424,8 @@ impl<'a> EntryAccessor<'a> {
         16 + self.key_len() + 8 + self.value_len()
     }
 
-    fn table_and_key(&self) -> (u64, &'a [u8]) {
-        (self.table_id(), self.key())
+    fn compare<K: RadbKey + ?Sized>(&self, table: u64, key: &[u8]) -> Ordering {
+        cmp_keys::<K>(self.table_id(), self.key(), table, key)
     }
 }
 
@@ -480,7 +536,7 @@ impl<'a: 'b, 'b> LeafBuilder<'a, 'b> {
     }
 }
 
-// Provides a simple zero-copy way to access a leaf page
+// Provides a simple zero-copy way to access an internal page
 //
 // Entry format is:
 // * (1 byte) type: 2 = INTERNAL
@@ -504,10 +560,6 @@ impl<'a: 'b, 'b> InternalAccessor<'a, 'b> {
 
     fn table_id(&self) -> u64 {
         u64::from_be_bytes(self.page.memory()[9..17].try_into().unwrap())
-    }
-
-    fn table_and_key(&self) -> (u64, &[u8]) {
-        (self.table_id(), self.key())
     }
 
     fn key(&self) -> &[u8] {
@@ -560,7 +612,7 @@ impl<'a: 'b, 'b> InternalBuilder<'a, 'b> {
 
 // Returns the page number of the sub-tree with this key deleted, or None if the sub-tree is empty.
 // If key is not found, guaranteed not to modify the tree
-pub(crate) fn tree_delete<'a>(
+pub(crate) fn tree_delete<'a, K: RadbKey + ?Sized>(
     page: Page<'a>,
     table: u64,
     key: &[u8],
@@ -572,14 +624,14 @@ pub(crate) fn tree_delete<'a>(
             let accessor = LeafAccessor::new(&page);
             #[allow(clippy::collapsible_else_if)]
             if let Some(greater) = accessor.greater() {
-                if (table, key) != accessor.lesser().table_and_key()
-                    && (table, key) != greater.table_and_key()
+                if accessor.lesser().compare::<K>(table, key).is_ne()
+                    && greater.compare::<K>(table, key).is_ne()
                 {
                     // Not found
                     return Some(page.get_page_number());
                 }
                 // Found, create a new leaf with the other key
-                let new_leaf = if (table, key) == accessor.lesser().table_and_key() {
+                let new_leaf = if accessor.lesser().compare::<K>(table, key).is_eq() {
                     Leaf(
                         (
                             greater.table_id(),
@@ -603,7 +655,7 @@ pub(crate) fn tree_delete<'a>(
                 drop(page);
                 Some(new_leaf.to_bytes(manager))
             } else {
-                if (table, key) == accessor.lesser().table_and_key() {
+                if accessor.lesser().compare::<K>(table, key).is_eq() {
                     // Deleted the entire left
                     None
                 } else {
@@ -625,9 +677,9 @@ pub(crate) fn tree_delete<'a>(
             // TODO: shouldn't need to drop this, but we can't allocate when there are pages in flight
             drop(page);
             #[allow(clippy::collapsible_else_if)]
-            if (table, key) <= (our_table, our_key.as_slice()) {
+            if cmp_keys::<K>(table, key, our_table, our_key.as_slice()).is_le() {
                 if let Some(page_number) =
-                    tree_delete(manager.get_page(left_page), table, key, manager)
+                    tree_delete::<K>(manager.get_page(left_page), table, key, manager)
                 {
                     left_page = page_number;
                 } else {
@@ -636,7 +688,7 @@ pub(crate) fn tree_delete<'a>(
                 }
             } else {
                 if let Some(page_number) =
-                    tree_delete(manager.get_page(right_page), table, key, manager)
+                    tree_delete::<K>(manager.get_page(right_page), table, key, manager)
                 {
                     right_page = page_number;
                 } else {
@@ -666,7 +718,7 @@ pub(crate) fn tree_delete<'a>(
 }
 
 // Returns the page number of the sub-tree into which the key was inserted
-pub(crate) fn tree_insert<'a>(
+pub(crate) fn tree_insert<'a, K: RadbKey + ?Sized>(
     page: Page<'a>,
     table: u64,
     key: &[u8],
@@ -684,7 +736,7 @@ pub(crate) fn tree_insert<'a>(
             // e.g. when we insert a second leaf adjacent without modifying this one
             let mut builder = BinarytreeBuilder::new();
             builder.add(table, key, value);
-            if (table, key) != accessor.lesser().table_and_key() {
+            if accessor.lesser().compare::<K>(table, key).is_ne() {
                 builder.add(
                     accessor.lesser().table_id(),
                     accessor.lesser().key(),
@@ -692,14 +744,14 @@ pub(crate) fn tree_insert<'a>(
                 );
             }
             if let Some(entry) = accessor.greater() {
-                if (table, key) != entry.table_and_key() {
+                if entry.compare::<K>(table, key).is_ne() {
                     builder.add(entry.table_id(), entry.key(), entry.value());
                 }
             }
             // TODO: shouldn't need to drop this, but we can't allocate when there are pages in flight
             // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             drop(page);
-            builder.build().to_bytes(manager)
+            builder.build::<K>().to_bytes(manager)
         }
         INTERNAL => {
             let accessor = InternalAccessor::new(&page);
@@ -711,9 +763,11 @@ pub(crate) fn tree_insert<'a>(
             // This guaranteed the MVCC read isolation, since every conflicting page will be dropped.
             drop(page);
             if (table, key) <= (our_table, our_key.as_slice()) {
-                left_page = tree_insert(manager.get_page(left_page), table, key, value, manager);
+                left_page =
+                    tree_insert::<K>(manager.get_page(left_page), table, key, value, manager);
             } else {
-                right_page = tree_insert(manager.get_page(right_page), table, key, value, manager);
+                right_page =
+                    tree_insert::<K>(manager.get_page(right_page), table, key, value, manager);
             }
 
             // create the new root node
@@ -763,7 +817,7 @@ pub(crate) fn tree_insert<'a>(
 ///
 /// This function will panic if it encounters a byte in the `Page` memory that does not correspond to a
 /// recognized node type (1 for leaf node or 2 for internal node).
-pub(crate) fn lookup_in_raw<'a>(
+pub(crate) fn lookup_in_raw<'a, K: RadbKey + ?Sized>(
     page: Page<'a>,
     table: u64,
     query: &[u8],
@@ -774,7 +828,12 @@ pub(crate) fn lookup_in_raw<'a>(
         LEAF => {
             // Leaf node
             let accessor = LeafAccessor::new(&page);
-            match (table, query).cmp(&accessor.lesser().table_and_key()) {
+            match cmp_keys::<K>(
+                table,
+                query,
+                accessor.lesser().table_id(),
+                accessor.lesser().key(),
+            ) {
                 Ordering::Less => None,
                 Ordering::Equal => {
                     let offset = accessor.offset_of_lesser() + accessor.lesser().value_offset();
@@ -783,7 +842,7 @@ pub(crate) fn lookup_in_raw<'a>(
                 }
                 Ordering::Greater => {
                     if let Some(entry) = accessor.greater() {
-                        if (table, query) == entry.table_and_key() {
+                        if entry.compare::<K>(table, query).is_eq() {
                             let offset = accessor.offset_of_greater() + entry.value_offset();
                             let value_len = entry.value().len();
                             Some((page, offset, value_len))
@@ -800,10 +859,10 @@ pub(crate) fn lookup_in_raw<'a>(
             let accessor = InternalAccessor::new(&page);
             let left_page = accessor.lte_page();
             let right_page = accessor.gt_page();
-            if (table, query) <= accessor.table_and_key() {
-                lookup_in_raw(manager.get_page(left_page), table, query, manager)
+            if cmp_keys::<K>(table, query, accessor.table_id(), accessor.key()).is_le() {
+                lookup_in_raw::<K>(manager.get_page(left_page), table, query, manager)
             } else {
-                lookup_in_raw(manager.get_page(right_page), table, query, manager)
+                lookup_in_raw::<K>(manager.get_page(right_page), table, query, manager)
             }
         }
         _ => unreachable!(),
@@ -812,8 +871,8 @@ pub(crate) fn lookup_in_raw<'a>(
 
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum Node {
-    Leaf((u64, Vec<u8>, Vec<u8>), Option<(u64, Vec<u8>, Vec<u8>)>),
-    Internal(Box<Node>, u64, Vec<u8>, Box<Node>),
+    Leaf((u64, Vec<u8>, Vec<u8>), Option<(u64, Vec<u8>, Vec<u8>)>), // (table, key, value), (table, key, value)
+    Internal(Box<Node>, u64, Vec<u8>, Box<Node>),                   // (left, table, key, right)
 }
 
 impl Node {
@@ -909,12 +968,15 @@ impl BinarytreeBuilder {
     /// # Returns
     ///
     /// This function returns the root `Node` of the constructed tree.
-    pub(crate) fn build(mut self) -> Node {
+    pub(crate) fn build<K: RadbKey + ?Sized>(mut self) -> Node {
         // we want a balanced tree, so we sort the pairs by key
         assert!(!self.pairs.is_empty());
-        self.pairs.sort();
+        self.pairs.sort_by(|(table1, key1, _), (table2, key2, _)| {
+            cmp_keys::<K>(*table1, key1, *table2, key2)
+        });
         let mut leaves = vec![];
 
+        // create leaves from pairs of elements
         for group in self.pairs.chunks(2) {
             let leaf = if group.len() == 1 {
                 Leaf((group[0].0, group[0].1.to_vec(), group[0].2.to_vec()), None)
@@ -936,10 +998,14 @@ impl BinarytreeBuilder {
         let mut bottom = leaves;
         let maybe_previous_node: Cell<Option<Node>> = Cell::new(None);
 
+        // build the tree bottom-up
         while bottom.len() > 1 {
             let mut internals = vec![];
             for node in bottom.drain(..) {
+                // state machine: if we have a previous node, create an internal node
+                // and reset the state, otherwise store the current node in the state
                 if let Some(previous_node) = maybe_previous_node.take() {
+                    // pick a key for the internal node
                     let (table, key) = previous_node.get_max_key();
                     let internal = Internal(Box::new(previous_node), table, key, Box::new(node));
                     internals.push(internal)
@@ -981,6 +1047,6 @@ mod test {
         builder.add(1, b"hello3", b"world3");
         builder.add(1, b"hello", b"world");
 
-        assert_eq!(expected, builder.build());
+        assert_eq!(expected, builder.build::<[u8]>());
     }
 }
