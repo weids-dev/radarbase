@@ -12,8 +12,55 @@ mmap(): Random read 100000 items in 25ms
 
 ### Milestones
 
+
+
 **Timeline (newest to oldest)**
 
+
+* **[19-08-2023]**
+
+```
+ Running benches/benchmark.rs (target/release/deps/benchmark-35091a204f461d5
+5)
+lmdb-rkv: Bulk loaded 100000 items in 230ms
+lmdb-rkv: Wrote 100 individual items in 9ms
+lmdb-rkv: Random read 100000 items in 75ms
+lmdb-rkv: Random read 100000 items in 66ms
+lmdb-rkv: Random read 100000 items in 65ms
+radarbase: Bulk loaded 100000 items in 1067ms
+radarbase: Wrote 100 individual items in 5659ms
+radarbase: Random read 100000 items in 116ms
+radarbase: Random read 100000 items in 133ms
+radarbase: Random read 100000 items in 117ms
+sled: Bulk loaded 100000 items in 2001ms
+sled: Wrote 100 individual items in 469ms
+sled: Random read 100000 items in 95ms
+sled: Random read 100000 items in 74ms
+sled: Random read 100000 items in 76ms
+
+Running benches/common.rs (target/release/deps/common-e2fdd093503f2a8a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finis
+hed in 0.00s
+
+Running benches/syscall_benchmark.rs (target/release/deps/syscall_benchmark-
+dbe9bc3126a40778)
+
+lmdb-zero: Loaded 100000 items in 245ms
+lmdb-zero: Random read 100000 items in 81ms
+lmdb-zero: Random read 100000 items in 74ms
+lmdb-zero: Random read 100000 items in 74ms
+read()/write(): Loaded 100000 items in 450ms
+read()/write(): Random read 100000 items in 130ms
+read()/write(): Random read 100000 items in 130ms
+read()/write(): Random read 100000 items in 143ms
+mmap(): Loaded 100000 items in 82ms
+mmap(): Random read 100000 items in 25ms
+mmap(): Random read 100000 items in 15ms
+mmap(): Random read 100000 items in 15ms
+```
 * **[07-04-2023](https://github.com/weids-dev/radarbase/commit/d45112bf681cfdd0d4ba662ff2e8a6f9e44409ca) Implement Bulk Insert Version**
 ```
      Running benches/benchmark.rs (target/release/deps/benchmark-0322d0ccc42aabb8)
