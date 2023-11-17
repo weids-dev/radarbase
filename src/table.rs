@@ -1,23 +1,30 @@
 use crate::error::Error;
 use crate::storage::Storage;
 use crate::transactions::WriteTransaction;
+use crate::types::RadbKey;
 use crate::ReadOnlyTransaction;
+use std::marker::PhantomData;
 
-pub struct Table<'mmap> {
+pub struct Table<'mmap, K: RadbKey + ?Sized> {
     storage: &'mmap Storage,
     table_id: u64,
+    _key_type: PhantomData<K>,
 }
 
-impl<'mmap> Table<'mmap> {
-    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> Result<Table<'mmap>, Error> {
-        Ok(Table { storage, table_id })
+impl<'mmap, K: RadbKey + ?Sized> Table<'mmap, K> {
+    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> Result<Table<'mmap, K>, Error> {
+        Ok(Table {
+            storage,
+            table_id,
+            _key_type: Default::default(),
+        })
     }
 
-    pub fn begin_write(&'_ mut self) -> Result<WriteTransaction<'mmap>, Error> {
+    pub fn begin_write(&'_ mut self) -> Result<WriteTransaction<'mmap, K>, Error> {
         Ok(WriteTransaction::new(self.table_id, self.storage))
     }
 
-    pub fn read_transaction(&'_ self) -> Result<ReadOnlyTransaction<'mmap>, Error> {
+    pub fn read_transaction(&'_ self) -> Result<ReadOnlyTransaction<'mmap, K>, Error> {
         Ok(ReadOnlyTransaction::new(self.table_id, self.storage))
     }
 }
@@ -25,14 +32,16 @@ impl<'mmap> Table<'mmap> {
 #[cfg(test)]
 mod test {
     use crate::binarytree::BinarytreeEntry;
-    use crate::Database;
+    use crate::types::{RadbKey, RefLifetime, WithLifetime};
+    use crate::{Database, Table};
+    use std::cmp::Ordering;
     use tempfile::NamedTempFile;
 
     #[test]
     fn len() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
         let mut write_txn = table.begin_write().unwrap();
         write_txn.insert(b"hello", b"world").unwrap();
         write_txn.insert(b"hello2", b"world2").unwrap();
@@ -46,8 +55,8 @@ mod test {
     fn multiple_tables() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"1").unwrap();
-        let mut table2 = db.open_table(b"2").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"1").unwrap();
+        let mut table2: Table<[u8]> = db.open_table(b"2").unwrap();
 
         let mut write_txn = table.begin_write().unwrap();
         write_txn.insert(b"hello", b"world").unwrap();
@@ -71,7 +80,7 @@ mod test {
     fn is_empty() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
         let read_txn = table.read_transaction().unwrap();
         assert!(read_txn.is_empty().unwrap());
         let mut write_txn = table.begin_write().unwrap();
@@ -85,7 +94,7 @@ mod test {
     fn abort() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
         let read_txn = table.read_transaction().unwrap();
         assert!(read_txn.is_empty().unwrap());
         let mut write_txn = table.begin_write().unwrap();
@@ -106,10 +115,31 @@ mod test {
     }
 
     #[test]
+    fn insert_overwrite() {
+        let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+        let db = unsafe { Database::open(tmpfile.path()).unwrap() };
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
+        let mut write_txn = table.begin_write().unwrap();
+        write_txn.insert(b"hello", b"world").unwrap();
+        write_txn.commit().unwrap();
+        let read_txn = table.read_transaction().unwrap();
+        assert_eq!(b"world", read_txn.get(b"hello").unwrap().unwrap().as_ref());
+
+        let mut write_txn = table.begin_write().unwrap();
+        write_txn.insert(b"hello", b"replaced").unwrap();
+        write_txn.commit().unwrap();
+        let read_txn = table.read_transaction().unwrap();
+        assert_eq!(
+            b"replaced",
+            read_txn.get(b"hello").unwrap().unwrap().as_ref()
+        );
+    }
+
+    #[test]
     fn insert_reserve() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
         let mut write_txn = table.begin_write().unwrap();
         let value = b"world";
         let reserved = write_txn.insert_reserve(b"hello", value.len()).unwrap();
@@ -123,7 +153,7 @@ mod test {
     fn delete() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
 
         let mut write_txn = table.begin_write().unwrap();
         write_txn.insert(b"hello", b"world").unwrap();
@@ -137,8 +167,9 @@ mod test {
         write_txn.remove(b"hello").unwrap();
         write_txn.commit().unwrap();
 
-        let read_txn2 = table.read_transaction().unwrap();
-        assert!(read_txn2.get(b"hello").unwrap().is_none());
+        let read_txn = table.read_transaction().unwrap();
+        assert!(read_txn.get(b"hello").unwrap().is_none());
+        assert_eq!(read_txn.len().unwrap(), 1);
     }
 
     #[test]
@@ -153,7 +184,7 @@ mod test {
 
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
 
         let mut write_txn = table.begin_write().unwrap();
         write_txn.insert(b"hello", b"world").unwrap();
@@ -176,7 +207,7 @@ mod test {
         // the version that was current when they started.
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
 
         // first write transaction
         let mut write_txn = table.begin_write().unwrap();
@@ -218,7 +249,7 @@ mod test {
     fn read_isolation2() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
 
         // write transaction 1
         let mut write_txn = table.begin_write().unwrap();
@@ -265,7 +296,7 @@ mod test {
         // TODO: Support read isolation in updating
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
 
         // first write transaction - create complex tree
         let mut write_txn = table.begin_write().unwrap();
@@ -309,31 +340,10 @@ mod test {
     }
 
     #[test]
-    fn insert_overwrite() {
-        let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
-        let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
-        let mut write_txn = table.begin_write().unwrap();
-        write_txn.insert(b"hello", b"world").unwrap();
-        write_txn.commit().unwrap();
-        let read_txn = table.read_transaction().unwrap();
-        assert_eq!(b"world", read_txn.get(b"hello").unwrap().unwrap().as_ref());
-
-        let mut write_txn = table.begin_write().unwrap();
-        write_txn.insert(b"hello", b"replaced").unwrap();
-        write_txn.commit().unwrap();
-        let read_txn = table.read_transaction().unwrap();
-        assert_eq!(
-            b"replaced",
-            read_txn.get(b"hello").unwrap().unwrap().as_ref()
-        );
-    }
-
-    #[test]
     fn range_query() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
 
         let mut write_txn = table.begin_write().unwrap();
         for i in 0..10u8 {
@@ -359,7 +369,7 @@ mod test {
     fn range_query_reversed() {
         let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
         let db = unsafe { Database::open(tmpfile.path()).unwrap() };
-        let mut table = db.open_table(b"x").unwrap();
+        let mut table: Table<[u8]> = db.open_table(b"x").unwrap();
 
         let mut write_txn = table.begin_write().unwrap();
         for i in 0..10u8 {
@@ -375,6 +385,50 @@ mod test {
             .unwrap();
         for i in (3..7u8).rev() {
             let entry = iter.next().unwrap();
+            assert_eq!(&[i], entry.key());
+            assert_eq!(b"value", entry.value());
+        }
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn custom_ordering() {
+        struct ReverseKey(Vec<u8>);
+        impl RadbKey for ReverseKey {
+            type View = RefLifetime<[u8]>;
+
+            fn from_bytes(data: &[u8]) -> <Self::View as WithLifetime>::Out {
+                data
+            }
+
+            fn as_bytes(&self) -> &[u8] {
+                &self.0
+            }
+
+            fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
+                data2.cmp(data1)
+            }
+        }
+
+        let tmpfile: NamedTempFile = NamedTempFile::new().unwrap();
+        let db = unsafe { Database::open(tmpfile.path()).unwrap() };
+        let mut table: Table<ReverseKey> = db.open_table(b"x").unwrap();
+
+        let mut write_txn = table.begin_write().unwrap();
+        for i in 0..10u8 {
+            let key = vec![i];
+            write_txn.insert(&ReverseKey(key), b"value").unwrap();
+        }
+        write_txn.commit().unwrap();
+        let read_txn = table.read_transaction().unwrap();
+        let start = vec![7u8]; // ReverseKey is used, so 7 < 3
+        let end = vec![3u8];
+        let mut iter = read_txn
+            .get_range(start.as_slice()..=end.as_slice())
+            .unwrap();
+        for i in (3..=7u8).rev() {
+            let entry = iter.next().unwrap();
+            dbg!(entry.table_id(), entry.key());
             assert_eq!(&[i], entry.key());
             assert_eq!(b"value", entry.value());
         }

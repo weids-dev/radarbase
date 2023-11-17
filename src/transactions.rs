@@ -1,63 +1,71 @@
 use crate::binarytree::BinarytreeRangeIter;
 use crate::error::Error;
 use crate::storage::{AccessGuard, Storage};
+use crate::types::RadbKey;
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use std::ops::RangeBounds;
 
-pub struct WriteTransaction<'mmap> {
+pub struct WriteTransaction<'mmap, K: RadbKey + ?Sized> {
     storage: &'mmap Storage,
     table_id: u64,
     added: HashMap<Vec<u8>, Vec<u8>>,
     removed: HashSet<Vec<u8>>,
+    _key_type: PhantomData<K>,
 }
 
-impl<'mmap> WriteTransaction<'mmap> {
-    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> WriteTransaction<'mmap> {
+impl<'mmap, K: RadbKey + ?Sized> WriteTransaction<'mmap, K> {
+    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> WriteTransaction<'mmap, K> {
         WriteTransaction {
             storage,
             table_id,
             added: HashMap::new(),
             removed: HashSet::new(),
+            _key_type: Default::default(),
         }
     }
 
-    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<(), Error> {
-        self.removed.remove(key);
-        self.added.insert(key.to_vec(), value.to_vec());
+    pub fn insert(&mut self, key: &K, value: &[u8]) -> Result<(), Error> {
+        self.removed.remove(key.as_bytes());
+        self.added.insert(key.as_bytes().to_vec(), value.to_vec());
         Ok(())
     }
 
     /// change the in-memory (mmap) data structure
     pub fn commit(self) -> Result<(), Error> {
-        self.storage.bulk_insert(self.table_id, self.added)?;
+        self.storage.bulk_insert::<K>(self.table_id, self.added)?;
         for key in self.removed.iter() {
-            self.storage.remove(self.table_id, key)?;
+            self.storage.remove::<K>(self.table_id, key)?;
         }
         self.storage.fsync()?;
         Ok(())
     }
 
     /// Reserve space to insert a key-value pair (without knowing the value yet)
-    /// The returned reference will have lenkth equal to value_length
-    pub fn insert_reserve(&mut self, key: &[u8], value_length: usize) -> Result<&mut [u8], Error> {
-        self.removed.remove(key);
-        self.added.insert(key.to_vec(), vec![0; value_length]);
-        Ok(self.added.get_mut(key).unwrap())
+    /// The returned reference will have length equal to value_length
+    pub fn insert_reserve(&mut self, key: &K, value_length: usize) -> Result<&mut [u8], Error> {
+        self.removed.remove(key.as_bytes());
+        self.added
+            .insert(key.as_bytes().to_vec(), vec![0; value_length]);
+        Ok(self.added.get_mut(key.as_bytes()).unwrap())
     }
 
     /// Get a value from the transaction. If the value is not in the data,
     /// it will be fetched from the mmap disk storage.
-    pub fn get(&self, key: &[u8]) -> Result<Option<AccessGuard>, Error> {
-        if let Some(value) = self.added.get(key) {
+    pub fn get(&self, key: &K) -> Result<Option<AccessGuard>, Error> {
+        if let Some(value) = self.added.get(key.as_bytes()) {
             return Ok(Some(AccessGuard::Local(value)));
         }
-        self.storage
-            .get(self.table_id, key, self.storage.get_root_page_number())
+        self.storage.get::<K>(
+            self.table_id,
+            key.as_bytes(),
+            self.storage.get_root_page_number(),
+        )
     }
 
-    pub fn remove(&mut self, key: &[u8]) -> Result<(), Error> {
-        self.added.remove(key);
-        self.removed.insert(key.to_vec());
+    pub fn remove(&mut self, key: &K) -> Result<(), Error> {
+        self.added.remove(key.as_bytes());
+        self.removed.insert(key.as_bytes().to_vec());
         Ok(())
     }
 
@@ -66,37 +74,40 @@ impl<'mmap> WriteTransaction<'mmap> {
     }
 }
 
-pub struct ReadOnlyTransaction<'mmap> {
+pub struct ReadOnlyTransaction<'mmap, K: RadbKey + ?Sized> {
     storage: &'mmap Storage,
     root_page: Option<u64>,
     table_id: u64,
+    _key_type: PhantomData<K>,
 }
 
-impl<'mmap> ReadOnlyTransaction<'mmap> {
-    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> ReadOnlyTransaction<'mmap> {
-        let root_page = storage.get_root_page_number(); // Read isolation
+impl<'mmap, K: RadbKey + ?Sized> ReadOnlyTransaction<'mmap, K> {
+    pub(crate) fn new(table_id: u64, storage: &'mmap Storage) -> ReadOnlyTransaction<'mmap, K> {
+        let root_page = storage.get_root_page_number();
         ReadOnlyTransaction {
             storage,
             root_page,
             table_id,
+            _key_type: Default::default(),
         }
     }
 
-    pub fn get(&self, key: &[u8]) -> Result<Option<AccessGuard<'mmap>>, Error> {
-        self.storage.get(self.table_id, key, self.root_page)
+    pub fn get(&self, key: &K) -> Result<Option<AccessGuard<'mmap>>, Error> {
+        self.storage
+            .get::<K>(self.table_id, key.as_bytes(), self.root_page)
     }
 
     pub fn get_range<'a, T: RangeBounds<&'a [u8]>>(
         &'a self,
         range: T,
-    ) -> Result<BinarytreeRangeIter<T>, Error> {
+    ) -> Result<BinarytreeRangeIter<T, K>, Error> {
         self.storage.get_range(self.table_id, range, self.root_page)
     }
 
     pub fn get_range_reversed<'a, T: RangeBounds<&'a [u8]>>(
         &'a self,
         range: T,
-    ) -> Result<BinarytreeRangeIter<T>, Error> {
+    ) -> Result<BinarytreeRangeIter<T, K>, Error> {
         self.storage
             .get_range_reversed(self.table_id, range, self.root_page)
     }

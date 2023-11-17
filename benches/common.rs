@@ -22,7 +22,7 @@ pub trait BenchReadTransaction<'a> {
 }
 
 pub struct RadbBenchTable<'a> {
-    table: radarbase::Table<'a>,
+    table: radarbase::Table<'a, [u8]>,
 }
 
 impl<'a> RadbBenchTable<'a> {
@@ -55,7 +55,7 @@ impl<'a> BenchTable for RadbBenchTable<'a> {
 }
 
 pub struct RadbBenchReadTransaction<'a> {
-    txn: radarbase::ReadOnlyTransaction<'a>,
+    txn: radarbase::ReadOnlyTransaction<'a, [u8]>,
 }
 
 impl<'a, 'b> BenchReadTransaction<'b> for RadbBenchReadTransaction<'a> {
@@ -67,7 +67,7 @@ impl<'a, 'b> BenchReadTransaction<'b> for RadbBenchReadTransaction<'a> {
 }
 
 pub struct RadbBenchWriteTransaction<'a> {
-    txn: radarbase::WriteTransaction<'a>,
+    txn: radarbase::WriteTransaction<'a, [u8]>,
 }
 
 impl BenchWriteTransaction for RadbBenchWriteTransaction<'_> {
