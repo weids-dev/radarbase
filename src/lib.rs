@@ -5,6 +5,7 @@ mod storage;
 mod table;
 mod transactions;
 mod types;
+pub mod btree; // testing
 
 /// This module provides an implementation of a binary tree.
 ///
@@ -24,4 +25,5 @@ pub use db::Database;
 pub use error::Error;
 pub use storage::AccessGuard;
 pub use table::Table;
+pub use btree::BTree;
 pub use transactions::{ReadOnlyTransaction, WriteTransaction};
